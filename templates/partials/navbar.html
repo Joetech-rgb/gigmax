@@ -1,0 +1,32 @@
+<nav class="navbar">
+    <div class="nav-brand">
+        <span class="brand-dot"></span>
+        SK Plug
+    </div>
+    <div class="nav-right">
+        {% if user.is_authenticated %}
+            <span class="nav-user">{{ user.full_name }}</span>
+            <a href="/accounts/logout/" class="btn btn-outline btn-sm">Logout</a>
+        {% else %}
+            <a href="/accounts/login/" class="btn btn-outline btn-sm">Login</a>
+            <a href="/accounts/signup/" class="btn btn-primary btn-sm">Sign Up</a>
+        {% endif %}
+    </div>
+</nav>
+<style>
+.navbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; background: var(--surface);
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
+}
+.nav-brand {
+    font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+}
+.brand-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--primary); display: inline-block;
+}
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.nav-user { font-size: 0.85rem; color: var(--muted); }
+</style>

@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}Buy Data — SK Plug{% endblock %}
+{% block body %}
+
+<div style="max-width:520px; margin:40px auto; padding:0 20px 60px;">
+
+    <div style="text-align:center; margin-bottom:32px;">
+        <h1 class="page-title" style="margin-bottom:6px;">Buy Data Bundle</h1>
+        <p style="color:var(--muted); font-size:0.95rem;">Fast delivery to any Ghana number</p>
+    </div>
+
+    {% if not mtn_enabled %}
+    {# ── MTN Pause Banner ── #}
+    <div style="background:rgba(255,180,0,0.1); border:1px solid rgba(255,180,0,0.45);
+                border-radius:10px; padding:12px 16px; margin-bottom:20px;
+                display:flex; align-items:center; gap:12px;">
+        <span style="font-size:1.3rem; flex-shrink:0;">⚠️</span>
+        <p style="margin:0; font-size:0.88rem; color:var(--text); line-height:1.4;">
+            <strong>MTN orders are temporarily unavailable.</strong>
+            All other networks are active.
+        </p>
+    </div>
+    {% endif %}
+
+    {% if promo_packages %}
+    {% with promo=promo_packages.first %}
+    <div style="background:linear-gradient(135deg,rgba(0,200,83,0.12),rgba(0,150,36,0.06));
+                border:1px solid rgba(0,200,83,0.35); border-radius:12px;
+                padding:16px 20px; margin-bottom:24px;
+                display:flex; align-items:center; gap:14px;">
+        <span style="font-size:1.8rem; flex-shrink:0;">🔥</span>
+        <div style="flex:1; min-width:0;">
+            <div style="font-family:'Syne',sans-serif; font-weight:700; color:var(--primary);
+                        font-size:0.9rem; margin-bottom:2px;">PROMO ACTIVE</div>
+            <div style="font-size:0.95rem; color:var(--text);">
+                <strong>{{ promo.gb_size|floatformat:0 }}GB</strong> for
+                <strong style="color:var(--primary);">GHS {{ promo.customer_price }}</strong>
+                — {{ promo.get_network_display }}
+                {% if promo.label %}
+                <span class="badge badge-success" style="font-size:0.65rem; margin-left:6px;">{{ promo.label }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% endif %}
+
+    <div class="card">
+        <form method="POST" id="buyForm">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label style="display:block; font-size:0.85rem; color:var(--muted); margin-bottom:8px;">
+                    Select Network
+                </label>
+                <select name="network" id="networkSelect" class="form-control" required>
+                    <option value="">— Choose Network —</option>
+                    <option value="MTN">MTN</option>
+                    <option value="TELECEL">Telecel</option>
+                    <option value="AT_NOEXPIRY">AT Non-Expiry</option>
+                    <option value="AT_EXPIRY">AT Expiry</option>
+                </select>
+            </div>
+
+            {# ── MTN toast (hidden by default) ── #}
+            <div id="mtnToast" style="display:none; background:rgba(255,180,0,0.12);
+                 border:1px solid rgba(255,180,0,0.5); border-radius:8px;
+                 padding:10px 14px; margin-bottom:12px; font-size:0.87rem;
+                 color:var(--text); display:flex; align-items:center; gap:8px;">
+                ⚠️ MTN orders are temporarily unavailable. Please select another network.
+            </div>
+
+            <div class="form-group">
+                <label style="display:block; font-size:0.85rem; color:var(--muted); margin-bottom:8px;">
+                    Select Package
+                </label>
+                <select name="package_id" id="packageSelect" class="form-control" required>
+                    <option value="">— Select Network First —</option>
+                </select>
+            </div>
+
+            {# All package data stored in a hidden template — not rendered into the DOM select at all #}
+            <div id="allPackagesData" style="display:none;">
+                {% for pkg in packages %}
+                <span
+                    data-id="{{ pkg.id }}"
+                    data-network="{{ pkg.network }}"
+                    data-gb="{{ pkg.gb_size|floatformat:0 }}"
+                    data-price="{{ pkg.display_price|default:pkg.customer_price }}"
+                    data-label="{{ pkg.label|default:'' }}"
+                    data-promo="{% if pkg.is_promo %}1{% else %}0{% endif %}">
+                </span>
+                {% endfor %}
+            </div>
+
+            <div id="pkgSummary" style="display:none; margin-bottom:16px;
+                 background:var(--surface2); border-radius:8px; padding:14px 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div id="pkgName" style="font-family:'Syne',sans-serif; font-weight:700; font-size:1rem;"></div>
+                        <div id="pkgPromo" style="display:none;" class="badge badge-warning" style="margin-top:4px; font-size:0.7rem;">PROMO</div>
+                    </div>
+                    <div id="pkgPrice" style="font-family:'Syne',sans-serif; font-weight:800;
+                                              font-size:1.4rem; color:var(--primary);"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="display:block; font-size:0.85rem; color:var(--muted); margin-bottom:8px;">
+                    Recipient Phone Number
+                </label>
+                <input type="tel"
+                       name="phone"
+                       id="phoneInput"
+                       placeholder="024XXXXXXX"
+                       inputmode="numeric"
+                       pattern="[0-9]{10}"
+                       maxlength="10"
+                       class="form-control"
+                       autocomplete="tel"
+                       required>
+                <div id="phoneError" style="display:none; color:var(--danger); font-size:0.8rem; margin-top:4px;">
+                    Enter a valid 10-digit Ghana number
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full" style="margin-top:8px;">
+                Continue to Payment →
+            </button>
+        </form>
+    </div>
+
+</div>
+
+<script>
+// ── Pass Django context flag into JS ──
+const MTN_ENABLED = {{ mtn_enabled|yesno:"true,false" }};
+
+// ── Build a lookup of all packages from the hidden data spans ──
+const allPackages = [...document.querySelectorAll('#allPackagesData span')].map(s => ({
+    id:      s.dataset.id,
+    network: s.dataset.network,
+    gb:      s.dataset.gb,
+    price:   s.dataset.price,
+    label:   s.dataset.label,
+    promo:   s.dataset.promo === '1',
+}));
+
+const networkSelect = document.getElementById('networkSelect');
+const packageSelect = document.getElementById('packageSelect');
+const pkgSummary    = document.getElementById('pkgSummary');
+const pkgName       = document.getElementById('pkgName');
+const pkgPrice      = document.getElementById('pkgPrice');
+const pkgPromo      = document.getElementById('pkgPromo');
+const phoneInput    = document.getElementById('phoneInput');
+const phoneError    = document.getElementById('phoneError');
+const mtnToast      = document.getElementById('mtnToast');
+
+// ── On network change ──
+networkSelect.addEventListener('change', function () {
+    const net = this.value;
+
+    // Block MTN when paused
+    if (net === 'MTN' && !MTN_ENABLED) {
+        mtnToast.style.display = 'flex';
+        this.value = '';                         // Reset selection
+        packageSelect.innerHTML = '<option value="">— Select Network First —</option>';
+        pkgSummary.style.display = 'none';
+        return;
+    }
+
+    mtnToast.style.display = 'none';
+
+    // Clear all options except placeholder
+    packageSelect.innerHTML = '<option value="">' + (net ? '— Choose Package —' : '— Select Network First —') + '</option>';
+    pkgSummary.style.display = 'none';
+
+    if (!net) return;
+
+    // Add only packages that match the selected network
+    const filtered = allPackages.filter(p => p.network === net);
+    filtered.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.gb + 'GB — GHS ' + p.price + (p.label ? ' (' + p.label + ')' : '') + (p.promo ? ' 🔥' : '');
+        packageSelect.appendChild(opt);
+    });
+});
+
+// ── On package change: show summary card ──
+packageSelect.addEventListener('change', function () {
+    const selectedId = this.value;
+    if (!selectedId) { pkgSummary.style.display = 'none'; return; }
+
+    const pkg = allPackages.find(p => p.id === selectedId);
+    if (!pkg) { pkgSummary.style.display = 'none'; return; }
+
+    const netText = networkSelect.options[networkSelect.selectedIndex].text;
+    pkgName.textContent  = pkg.gb + 'GB — ' + netText;
+    pkgPrice.textContent = 'GHS ' + pkg.price;
+    pkgPromo.style.display = pkg.promo ? 'inline-block' : 'none';
+    pkgSummary.style.display = 'block';
+});
+
+// ── Phone: digits only ──
+phoneInput.addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '');
+});
+
+phoneInput.addEventListener('blur', function () {
+    if (this.value && this.value.length !== 10) {
+        phoneError.style.display = 'block';
+        this.style.borderColor = 'var(--danger)';
+    } else {
+        phoneError.style.display = 'none';
+        this.style.borderColor = '';
+    }
+});
+
+// ── Form submit ──
+document.getElementById('buyForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    // Hard block — MTN safety net
+    if (networkSelect.value === 'MTN' && !MTN_ENABLED) {
+        mtnToast.style.display = 'flex';
+        networkSelect.value = '';
+        packageSelect.innerHTML = '<option value="">— Select Network First —</option>';
+        pkgSummary.style.display = 'none';
+        return;
+    }
+
+    if (phoneInput.value.length !== 10) {
+        phoneError.style.display = 'block';
+        phoneInput.style.borderColor = 'var(--danger)';
+        phoneInput.focus();
+        return;
+    }
+
+    const packageId = packageSelect.value;
+    if (!packageId) {
+        alert('Please select a package.');
+        packageSelect.focus();
+        return;
+    }
+
+    this.action = '/payment/initiate/' + packageId + '/';
+    this.submit();
+});
+</script>
+{% endblock %}

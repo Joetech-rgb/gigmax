@@ -1,0 +1,32 @@
+﻿{% extends "base.html" %}
+{% block title %}AFA Bundle — New Order{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main style="flex:1; padding:32px 24px;">
+        <h1 class="page-title">AFA Bundle — New Order</h1>
+
+        {% if messages %}{% for m in messages %}
+            <div class="alert alert-{{ m.tags }}">{{ m }}</div>
+        {% endfor %}{% endif %}
+
+        <div class="card" style="padding:24px; margin-bottom:32px; border: 1px solid #ddd;">
+            <form method="POST" action="">
+                {% csrf_token %}
+                <div style="margin-bottom:16px;">
+                    {{ form.as_p }}
+                </div>
+                
+                <div style="display:flex; gap:12px;">
+                    <button type="submit" name="payment_method" value="wallet" class="btn btn-success">
+                        Pay with Wallet
+                    </button>
+                    <button type="submit" name="payment_method" value="paystack" class="btn btn-primary">
+                        Pay with Paystack
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+{% endblock %}

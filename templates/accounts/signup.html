@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Become an Agent — SK Plug{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+    <div class="auth-card" style="max-width:480px;">
+        <div class="auth-logo"><span class="brand-dot"></span> SK Plug</div>
+        <h1 class="auth-title">Become an Agent</h1>
+        <p class="auth-sub">Fill in your details to request agent access</p>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" name="full_name" class="form-control" placeholder="Your full name" required>
+            </div>
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" name="phone_number" class="form-control" placeholder="0XX XXX XXXX" required>
+            </div>
+            <div class="form-group">
+                <label>Email <span style="color:var(--primary); font-size:0.8rem;">(Recommended for alerts)</span></label>
+                <input type="email" name="email" class="form-control" placeholder="you@example.com">
+                <small style="color:var(--muted); font-size:0.78rem; margin-top:4px; display:block;">
+                    <i class="fa fa-circle-info"></i> Used for order alerts and account notifications. No spam.
+                </small>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" class="form-control" placeholder="Min. 6 characters" required>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" name="confirm_password" class="form-control" placeholder="Repeat password" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Submit Request</button>
+        </form>
+        <div class="auth-links">
+            Already have an account? <a href="/accounts/login/">Login</a>
+        </div>
+    </div>
+</div>
+<style>
+.auth-wrap { min-height: calc(100vh - 56px); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.auth-card { width: 100%; max-width: 480px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; }
+.auth-logo { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
+.auth-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; }
+.auth-sub { color: var(--muted); margin-bottom: 28px; }
+.auth-links { display: flex; gap: 12px; justify-content: center; margin-top: 20px; font-size: 0.85rem; color: var(--muted); }
+</style>
+{% endblock %}

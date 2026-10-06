@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Agent Requests — Admin{% endblock %}
+{% block body %}
+<div style="display:flex; min-height: 100vh; overflow-x: hidden;">
+    {% include 'partials/sidebar.html' %}
+    
+    <main class="layout-with-sidebar" style="flex: 1; padding: 32px 24px; min-width: 0; width: 100%;">
+        
+        <h1 class="page-title"><i class="fa fa-user-plus"></i> Agent Signup Requests</h1>
+
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}" style="margin-bottom: 20px;">
+                {{ message }}
+            </div>
+        {% endfor %}
+
+        <div class="card table-wrap" style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Requested</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr>
+                        <td><strong>{{ req.full_name }}</strong></td>
+                        <td>{{ req.phone_number }}</td>
+                        <td>{{ req.email|default:"—" }}</td>
+                        <td style="color:var(--muted); font-size:0.85rem;">
+                            {{ req.requested_at|date:"d M Y H:i" }}
+                        </td>
+                        <td style="text-align:right; white-space: nowrap;">
+                            <a href="/admin-panel/agent-requests/{{ req.pk }}/approve/"
+                               class="btn btn-primary btn-sm">✅ Approve</a>
+                            <a href="/admin-panel/agent-requests/{{ req.pk }}/decline/"
+                               class="btn btn-danger btn-sm" style="margin-left:8px;">❌ Decline</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align:center; color:var(--muted); padding:48px;">
+                            <i class="fa fa-inbox" style="display:block; font-size:2rem; margin-bottom:10px;"></i>
+                            No pending requests.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+{% endblock %}

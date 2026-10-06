@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% block title %}API Usage – Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+        <h1 class="page-title">API Usage</h1>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        {% comment %}
+        <!-- Gati Toggle -->
+        <div class="card" style="margin-bottom:24px; border-color:{% if gati_enabled %}rgba(0,200,83,0.35){% else %}rgba(255,68,68,0.35){% endif %};">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <p style="font-weight:700; font-size:1rem; margin-bottom:6px;">
+                        Gati Auto-Processing
+                        <span class="badge {% if gati_enabled %}badge-success{% else %}badge-danger{% endif %}" style="margin-left:8px;">
+                            {% if gati_enabled %}ON{% else %}OFF{% endif %}
+                        </span>
+                    </p>
+                    <p style="font-size:0.85rem; color:var(--muted);">
+                        {% if gati_enabled %}
+                        Pending MTN orders are automatically sent to Gati. Manually processed orders are excluded.
+                        {% else %}
+                        Gati is off. No orders will be sent automatically. Manual processing only.
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="/admin-panel/toggle-gati/"
+                   class="btn {% if gati_enabled %}btn-danger{% else %}btn-primary{% endif %} btn-sm"
+                   onclick="return confirm('{% if gati_enabled %}Turn OFF Gati auto-processing?{% else %}Turn ON Gati auto-processing?{% endif %}')">
+                    <i class="fa fa-power-off"></i>
+                    {% if gati_enabled %}Turn Off Gati{% else %}Turn On Gati{% endif %}
+                </a>
+            </div>
+        </div>
+        {% endcomment %}
+
+        <!-- Payment Gateway Toggle -->
+        <div class="card" style="margin-bottom:24px; border-color:rgba(0,150,255,0.35);">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <p style="font-weight:700; font-size:1rem; margin-bottom:6px;">
+                        Active Payment Gateway
+                        <span class="badge badge-info" style="margin-left:8px;">
+                            {{ payment_gateway_settings.get_active_gateway_display }}
+                        </span>
+                    </p>
+                    <p style="font-size:0.85rem; color:var(--muted);">
+                        New top-ups and payouts use this gateway. Switching does not affect
+                        transactions already in progress under the other gateway — each
+                        keeps its own webhook and will still complete normally.
+                    </p>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <form method="post" action="/admin-panel/toggle-payment-gateway/" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="gateway" value="paystack">
+                        <button type="submit"
+                                class="btn btn-sm {% if payment_gateway_settings.active_gateway == 'paystack' %}btn-primary{% else %}btn-outline{% endif %}"
+                                onclick="return confirm('Switch active payment gateway to Paystack?')"
+                                {% if payment_gateway_settings.active_gateway == 'paystack' %}disabled{% endif %}>
+                            Use Paystack
+                        </button>
+                    </form>
+                    <form method="post" action="/admin-panel/toggle-payment-gateway/" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="gateway" value="moolre">
+                        <button type="submit"
+                                class="btn btn-sm {% if payment_gateway_settings.active_gateway == 'moolre' %}btn-primary{% else %}btn-outline{% endif %}"
+                                onclick="return confirm('Switch active payment gateway to Moolre?')"
+                                {% if payment_gateway_settings.active_gateway == 'moolre' %}disabled{% endif %}>
+                            Use Moolre
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kuntanii Toggle -->
+        <div class="card" style="margin-bottom:24px; border-color:{% if kuntanii_enabled %}rgba(0,200,83,0.35){% else %}rgba(255,68,68,0.35){% endif %};">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <p style="font-weight:700; font-size:1rem; margin-bottom:6px;">
+                        Kuntanii Auto-Processing
+                        <span class="badge {% if kuntanii_enabled %}badge-success{% else %}badge-danger{% endif %}" style="margin-left:8px;">
+                            {% if kuntanii_enabled %}ON{% else %}OFF{% endif %}
+                        </span>
+                    </p>
+                    <p style="font-size:0.85rem; color:var(--muted);">
+                        {% if kuntanii_enabled %}
+                        Pending MTN orders are automatically verified and sent to Kuntanii. Manually processed orders are excluded.
+                        {% else %}
+                        Kuntanii is off. No orders will be sent automatically. Manual processing only.
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="/admin-panel/toggle-kuntanii/"
+                   class="btn {% if kuntanii_enabled %}btn-danger{% else %}btn-primary{% endif %} btn-sm"
+                   onclick="return confirm('{% if kuntanii_enabled %}Turn OFF Kuntanii auto-processing?{% else %}Turn ON Kuntanii auto-processing?{% endif %}')">
+                    <i class="fa fa-power-off"></i>
+                    {% if kuntanii_enabled %}Turn Off Kuntanii{% else %}Turn On Kuntanii{% endif %}
+                </a>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:24px; border-color:{% if at_enabled %}rgba(0,200,83,0.35){% else %}rgba(255,68,68,0.35){% endif %};">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <p style="font-weight:700; font-size:1rem; margin-bottom:6px;">
+                        AT Auto-Processing
+                        <span class="badge {% if at_enabled %}badge-success{% else %}badge-danger{% endif %}" style="margin-left:8px;">
+                            {% if at_enabled %}ON{% else %}OFF{% endif %}
+                        </span>
+                    </p>
+                    <p style="font-size:0.85rem; color:var(--muted);">
+                        {% if at_enabled %}
+                        Pending AT orders are automatically sent to DCS Elite. Manually processed orders are excluded.
+                        {% else %}
+                        AT is off. No orders will be sent automatically. Manual processing only.
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="/admin-panel/toggle-at/"
+                   class="btn {% if at_enabled %}btn-danger{% else %}btn-primary{% endif %} btn-sm"
+                   onclick="return confirm('{% if at_enabled %}Turn OFF AT auto-processing?{% else %}Turn ON AT auto-processing?{% endif %}')">
+                    <i class="fa fa-power-off"></i>
+                    {% if at_enabled %}Turn Off AT{% else %}Turn On AT{% endif %}
+                </a>
+            </div>
+        </div>
+
+        <div class="stat-card" style="margin-bottom:24px;">
+            <div class="stat-label">Total Active API Connections</div>
+            <div class="stat-value">{{ api_users|length }}</div>
+        </div>
+
+        <div class="card table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Agent</th>
+                        <th>Phone</th>
+                        <th>API Token</th>
+                        <th>Total Orders</th>
+                        <th>API Access</th>
+                        <th>Account</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for agent in api_users %}
+                    <tr {% if 'gati' in agent.full_name|lower %}style="border-left:3px solid var(--primary);"{% endif %}>
+                        <td style="color:var(--muted);">
+                            {{ forloop.counter }}
+                            {% if 'gati' in agent.full_name|lower %}
+                            <span class="badge badge-success" style="font-size:0.65rem; margin-left:4px;">Gati</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ agent.full_name }}</strong></td>
+                        <td>{{ agent.phone_number }}</td>
+                        <td>
+                            {% if agent.api_token %}
+                            <code style="font-size:0.72rem;">{{ agent.api_token|slice:":20" }}...</code>
+                            {% else %}
+                            <span style="color:var(--muted);">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong style="color:var(--primary);">{{ agent.total_orders }}</strong>
+                        </td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="badge {% if agent.has_api_access %}badge-success{% else %}badge-danger{% endif %}">
+                                    {% if agent.has_api_access %}On{% else %}Off{% endif %}
+                                </span>
+                                <a href="/admin-panel/users/{{ agent.pk }}/toggle-api/"
+                                   class="btn btn-sm {% if agent.has_api_access %}btn-danger{% else %}btn-primary{% endif %}"
+                                   onclick="return confirm('{% if agent.has_api_access %}Disable{% else %}Enable{% endif %} API access for {{ agent.full_name }}?')">
+                                    {% if agent.has_api_access %}Turn Off{% else %}Turn On{% endif %}
+                                </a>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="/admin-panel/users/{{ agent.pk }}/toggle-pause/"
+                               class="btn btn-sm {% if agent.is_paused %}btn-primary{% else %}btn-outline{% endif %}"
+                               onclick="return confirm('{% if agent.is_paused %}Reactivate{% else %}Pause{% endif %} {{ agent.full_name }}?')">
+                                {% if agent.is_paused %}Reactivate{% else %}Pause{% endif %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align:center; color:var(--muted); padding:32px;">
+                            No API users yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <p class="section-title">Grant API Access</p>
+            <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">
+                Go to API Requests to approve new access requests.
+            </p>
+            <a href="/admin-panel/api-requests/" class="btn btn-outline btn-sm">
+                <i class="fa fa-key"></i> View API Requests
+            </a>
+        </div>
+
+    </main>
+</div>
+{% endblock %}

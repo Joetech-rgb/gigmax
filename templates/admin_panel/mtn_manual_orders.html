@@ -1,0 +1,641 @@
+{% extends 'base.html' %}
+{% block title %}MTN Manual Orders – Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+        <h1 class="page-title">MTN Manual Orders</h1>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        <!-- PENDING ALERT BANNER -->
+        {% if pending_count > 0 %}
+        <div style="background:rgba(255,160,0,0.12); border:1px solid rgba(255,160,0,0.4); border-radius:8px; padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+            <div>
+                <i class="fa fa-triangle-exclamation" style="color:#FFA000;"></i>
+                <strong style="color:#FFA000;">{{ pending_count }} pending paid order(s)</strong>
+                <span style="color:var(--muted); font-size:0.88rem; margin-left:6px;">across all dates — not yet copied for delivery.</span>
+            </div>
+            <button onclick="copyAllPending()" class="btn btn-primary" id="copyAllBtn" style="padding:8px 20px; font-size:0.88rem;">
+                <i class="fa fa-copy"></i> Copy All Pending ({{ pending_count }})
+            </button>
+        </div>
+        {% endif %}
+
+        <!-- SEARCH / FILTER -->
+        <form method="get" class="card" style="margin-bottom:20px;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <input type="text" name="search" value="{{ request.GET.search }}"
+                       class="form-control" placeholder="Search number or order ID..." style="flex:1;">
+                <input type="date" name="date_from" value="{{ request.GET.date_from }}" class="form-control" style="width:160px;">
+                <input type="date" name="date_to"   value="{{ request.GET.date_to }}"   class="form-control" style="width:160px;">
+                <select name="status_filter" class="form-control" style="width:170px;">
+                    <option value="">All Statuses</option>
+                    <option value="pending"         {% if request.GET.status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="pending_payment" {% if request.GET.status_filter == 'pending_payment' %}selected{% endif %}>Pending Payment</option>
+                    <option value="processing"      {% if request.GET.status_filter == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="waiting"         {% if request.GET.status_filter == 'waiting' %}selected{% endif %}>Waiting</option>
+                    <option value="refunded"        {% if request.GET.status_filter == 'refunded' %}selected{% endif %}>Refunded</option>
+                    <option value="delivered"       {% if request.GET.status_filter == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="failed"          {% if request.GET.status_filter == 'failed' %}selected{% endif %}>Failed</option>
+                </select>
+                <button type="submit" class="btn btn-primary">Filter</button>
+                {% if request.GET.search or request.GET.date_from or request.GET.date_to %}
+                <a href="?" class="btn btn-outline">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- ACTION BUTTONS -->
+        <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+            <button onclick="bulkCopySelected()" class="btn btn-outline" id="bulkCopyBtn">
+                <i class="fa fa-copy"></i> Copy Selected
+            </button>
+            <button onclick="bulkMarkDeliveredSelected()" class="btn btn-outline" id="bulkDeliverBtn"
+                    style="background:rgba(0,200,83,0.1); border:1px solid rgba(0,200,83,0.4); color:var(--primary);">
+                <i class="fa fa-check-double"></i> Mark Selected Delivered
+            </button>
+            <button onclick="bulkDeleteSelected()" class="btn btn-outline" id="bulkDeleteBtn"
+                    style="background:rgba(244,67,54,0.08); border:1px solid rgba(244,67,54,0.3); color:#f44336;">
+                <i class="fa fa-trash"></i> Delete Selected
+            </button>
+            <!-- #2 Select All Pages button -->
+            <button onclick="selectAllPages()" class="btn btn-outline" id="selectAllPagesBtn"
+                    style="background:rgba(33,150,243,0.08); border:1px solid rgba(33,150,243,0.3); color:#2196F3;">
+                <i class="fa fa-layer-group"></i> Select All Pages
+            </button>
+            <button onclick="excelDownload()" class="btn btn-outline">
+                <i class="fa fa-file-excel"></i> Excel
+            </button>
+            <span id="selectionInfo" style="font-size:0.85rem; color:var(--muted); margin-left:4px;"></span>
+        </div>
+
+        <!-- ORDERS TABLE -->
+        <div class="card" style="margin-bottom:24px;">
+            <div style="overflow-y:auto; max-height:520px;">
+                <table style="width:100%;">
+                    <thead style="position:sticky; top:0; background:var(--card-bg, #fff); z-index:2;">
+                        <tr>
+                            <th><input type="checkbox" id="selectAll" onclick="toggleAll()"></th>
+                            <th>#</th><th>Order ID</th><th>Recipient</th>
+                            <th>GB</th><th>Type</th><th>Status</th><th>Agent</th><th>Price</th><th>Date</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in orders %}
+                        <tr id="row-{{ o.order_id }}"
+                            {% if o.status == 'pending' and o.payment_status == 'paid' %}style="background:rgba(255,160,0,0.06);"{% endif %}>
+                            <td>
+                                {% if o.status == 'pending' or o.status == 'processing' %}
+                                <input type="checkbox" class="order-check" value="{{ o.order_id }}"
+                                       data-recipient="{{ o.recipient }}"
+                                       data-gb="{% if o.gb_package %}{{ o.gb_package.gb_size|floatformat:0 }}{% else %}0{% endif %}"
+                                       data-status="{{ o.status }}"
+                                       onchange="onCheckChange()">
+                                {% endif %}
+                            </td>
+                            <td style="color:var(--muted);">{{ forloop.counter }}</td>
+                            <td><code>{{ o.order_id }}</code></td>
+                            <td>
+                                {% if o.recipient in blocked_numbers %}
+                                <span style="display:inline-block; width:8px; height:8px; background:#FF1744; border-radius:50%; margin-right:5px; flex-shrink:0;" title="BLOCKED NUMBER"></span>
+                                {% endif %}
+                                <strong>{{ o.recipient }}</strong>
+                                {% if o.recipient in blocked_numbers %}
+                                <span style="font-size:0.7rem; background:rgba(255,23,68,0.12); color:#FF1744; padding:1px 6px; border-radius:4px; margin-left:4px; font-weight:700;">BLOCKED</span>
+                                {% endif %}
+                            </td>
+                            <td>{% if o.gb_package %}{{ o.gb_package.gb_size|floatformat:0 }}GB{% else %}—{% endif %}</td>
+                            <td>
+                                {% if o.source == 'api' %}
+                                    <span class="badge badge-info">API (offline)</span>
+                                {% elif o.source == 'generated_link' %}
+                                    <span class="badge badge-warning">Link</span>
+                                {% elif o.source == 'guest_checkout' %}
+                                    <span class="badge badge-muted">Guest</span>
+                                {% else %}
+                                    <span class="badge badge-muted">Manual</span>
+                                {% endif %}
+                            </td>
+                            <td id="status-{{ o.order_id }}">
+                                <span class="badge
+                                    {% if o.status == 'delivered' %}badge-success
+                                    {% elif o.status == 'processing' %}badge-warning
+                                    {% elif o.status == 'failed' %}badge-danger
+                                    {% else %}badge-muted{% endif %}">
+                                    {{ o.get_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ o.placed_by.full_name|default:"Customer" }}</td>
+                            <td>GHS {{ o.price_paid }}</td>
+                            <td style="color:var(--muted); font-size:0.8rem;">{{ o.created_at|date:"d M H:i" }}</td>
+                            <td>
+                                <select class="form-control status-select"
+                                        data-order-id="{{ o.order_id }}"
+                                        style="padding:4px 8px; font-size:0.8rem; width:120px;"
+                                        onchange="changeStatus(this)">
+                                    <option value="pending"    {% if o.status == 'pending'    %}selected{% endif %}>Pending</option>
+                                    <option value="processing" {% if o.status == 'processing' %}selected{% endif %}>Processing</option>
+                                    <option value="waiting"    {% if o.status == 'waiting'    %}selected{% endif %}>Waiting</option>
+                                    <option value="refunded"   {% if o.status == 'refunded'   %}selected{% endif %}>Refunded</option>
+                                    <option value="delivered"  {% if o.status == 'delivered'  %}selected{% endif %}>Delivered</option>
+                                    <option value="failed"     {% if o.status == 'failed'     %}selected{% endif %}>Failed</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="11" style="text-align:center; color:var(--muted); padding:32px;">No orders found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PAGINATION -->
+        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:24px; flex-wrap:wrap; align-items:center;">
+            {% if orders.has_previous %}
+                <a href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}"
+                   class="btn btn-outline btn-sm">« First</a>
+                <a href="?page={{ orders.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}"
+                   class="btn btn-outline btn-sm">‹ Prev</a>
+            {% endif %}
+
+            {% for i in orders.paginator.page_range %}
+                {% if i == orders.number %}
+                    <span style="padding:6px 12px; background:var(--primary); color:#000; border-radius:6px; font-size:0.85rem; font-weight:700;">{{ i }}</span>
+                {% elif i == 1 or i == orders.paginator.num_pages or i >= orders.number|add:"-2" and i <= orders.number|add:"2" %}
+                    <a href="?page={{ i }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}"
+                       style="padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:0.85rem; color:var(--text); text-decoration:none;">{{ i }}</a>
+                {% elif i == orders.number|add:"-3" or i == orders.number|add:"3" %}
+                    <span style="color:var(--muted); padding:0 4px;">…</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if orders.has_next %}
+                <a href="?page={{ orders.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}"
+                   class="btn btn-outline btn-sm">Next ›</a>
+                <a href="?page={{ orders.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}"
+                   class="btn btn-outline btn-sm">Last »</a>
+            {% endif %}
+
+            <span style="font-size:0.85rem; color:var(--muted); margin-left:8px;">
+                Page {{ orders.number }} of {{ orders.paginator.num_pages }}
+                &nbsp;·&nbsp; {{ orders.paginator.count }} total
+            </span>
+
+            <form method="get" style="display:flex; align-items:center; gap:6px; margin-left:8px;">
+                {% if request.GET.search %}<input type="hidden" name="search" value="{{ request.GET.search }}">{% endif %}
+                {% if request.GET.date_from %}<input type="hidden" name="date_from" value="{{ request.GET.date_from }}">{% endif %}
+                {% if request.GET.date_to %}<input type="hidden" name="date_to" value="{{ request.GET.date_to }}">{% endif %}
+                <input type="number" name="page" min="1" max="{{ orders.paginator.num_pages }}"
+                       placeholder="Go to…" class="form-control"
+                       style="width:80px; padding:4px 8px; font-size:0.82rem;">
+                <button type="submit" class="btn btn-outline btn-sm">Go</button>
+            </form>
+        </div>
+
+        <!-- Copy Result Box -->
+        <div id="copyResultBox" style="display:none; margin-bottom:24px;" class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <p class="section-title" style="margin:0;" id="copyResultTitle">Copied Orders</p>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('copyText').value).then(()=>showToast('Copied!'))"
+                        class="btn btn-outline btn-sm">Copy Again</button>
+            </div>
+            <textarea id="copyText" class="form-control" rows="6" readonly
+                      style="font-family:monospace; font-size:0.9rem;"></textarea>
+        </div>
+
+        <!-- BULK CHANGE TO DELIVERED (sessions) -->
+        <div class="card" id="bulkDeliveredSection">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+                <h2 style="margin:0; font-size:1.15rem; font-weight:700;">
+                    <i class="fa fa-check-double"></i> Bulk Change to Delivered
+                </h2>
+                <button onclick="loadBulkSessions()" class="btn btn-outline btn-sm">
+                    <i class="fa fa-rotate-right"></i> Refresh
+                </button>
+            </div>
+            <div id="bulkSessionsList">
+                <div style="color:var(--muted); font-size:0.9rem; padding:12px 0;">Loading sessions...</div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<div id="statusToast" style="display:none; position:fixed; bottom:24px; right:24px; z-index:9999;
+     background:#00c853; color:#000; padding:12px 20px; border-radius:8px;
+     font-size:0.9rem; font-weight:600; box-shadow:0 4px 16px rgba(0,0,0,0.3);">
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const CSRF = '{{ csrf_token }}';
+
+    // ── #2 Cross-page selection state ─────────────────────────────────────
+    let _allPageIds = [];  // order IDs fetched from server across all pages
+
+    // ── #10 Status change WITHOUT page refresh ────────────────────────────
+    async function changeStatus(select, forceConfirm) {
+        const orderId = select.dataset.orderId;
+        const status  = select.value;
+        const form    = new FormData();
+        form.append('status', status);
+        form.append('csrfmiddlewaretoken', CSRF);
+        if (forceConfirm) form.append('confirm', '1');
+
+        select.disabled = true;
+        try {
+            const res  = await fetch(`/admin-panel/orders/${orderId}/status/`, {
+                method: 'POST',
+                body: form,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!data.ok) {
+                if (data.needs_confirm) {
+                    select.disabled = false;
+                    const proceed = confirm(
+                        (data.error || 'This action needs confirmation.') +
+                        '\n\nDo you want to proceed anyway?'
+                    );
+                    if (proceed) {
+                        return changeStatus(select, true);
+                    }
+                    return;
+                }
+                showToast(data.error || 'Update failed', true);
+                select.disabled = false;
+                return;
+            }
+            const cell  = document.getElementById(`status-${orderId}`);
+            const badge = {
+                delivered:  ['badge-success', 'Delivered'],
+                processing: ['badge-warning', 'Processing'],
+                pending:    ['badge-muted',   'Pending'],
+                failed:     ['badge-danger',  'Failed'],
+                waiting:    ['badge-warning', 'Waiting'],
+                refunded:   ['badge-info',    'Refunded'],
+            }[status] || ['badge-muted', status];
+            cell.innerHTML = `<span class="badge ${badge[0]}">${badge[1]}</span>`;
+            showToast(`${orderId} → ${badge[1]}`);
+        } catch(e) {
+            showToast('Status update failed', true);
+        } finally {
+            select.disabled = false;
+        }
+    }
+
+    // ── Selection helpers ─────────────────────────────────────────────────
+    function toggleAll() {
+        const all = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.order-check').forEach(cb => cb.checked = all);
+        onCheckChange();
+    }
+
+    function onCheckChange() {
+        if (_allPageIds.length) {
+            // cross-page mode — don't overwrite the info banner
+            return;
+        }
+        updateSelectionInfo();
+    }
+
+    function updateSelectionInfo() {
+        const n = document.querySelectorAll('.order-check:checked').length;
+        document.getElementById('selectionInfo').textContent = n > 0 ? `${n} selected` : '';
+    }
+
+    // ── #2 Select All Pages ───────────────────────────────────────────────
+    async function selectAllPages() {
+        const btn = document.getElementById('selectAllPagesBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Loading...';
+
+        try {
+            const res  = await fetch('/admin-panel/orders/all-pending-ids/');
+            const data = await res.json();
+
+            if (!data.count) {
+                showToast('No pending orders found across all pages.', true);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-layer-group"></i> Select All Pages';
+                return;
+            }
+
+            _allPageIds = data.order_ids;
+
+            // Tick visible checkboxes that are in the set
+            document.querySelectorAll('.order-check').forEach(cb => {
+                if (_allPageIds.includes(cb.value)) cb.checked = true;
+            });
+
+            document.getElementById('selectionInfo').innerHTML =
+                `<strong style="color:#2196F3;">${data.count} orders selected across all pages</strong>
+                 &nbsp;<button onclick="clearAllPages()"
+                     style="margin-left:6px;background:none;border:none;color:#f44336;cursor:pointer;font-size:0.8rem;font-weight:600;">
+                     ✕ Clear</button>`;
+
+            btn.style.background = 'rgba(33,150,243,0.2)';
+            btn.innerHTML = `<i class="fa fa-layer-group"></i> ${data.count} Selected`;
+
+        } catch(e) {
+            showToast('Failed to load all pages.', true);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-layer-group"></i> Select All Pages';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function clearAllPages() {
+        _allPageIds = [];
+        document.querySelectorAll('.order-check').forEach(cb => cb.checked = false);
+        document.getElementById('selectAll').checked = false;
+        const btn = document.getElementById('selectAllPagesBtn');
+        btn.style.background = '';
+        btn.innerHTML = '<i class="fa fa-layer-group"></i> Select All Pages';
+        updateSelectionInfo();
+    }
+
+    // Returns object array with .value — works for both visible + cross-page
+    function getSelectedIds() {
+        if (_allPageIds.length) {
+            // merge cross-page + any additionally ticked visible ones
+            const visibleChecked = [...document.querySelectorAll('.order-check:checked')].map(cb => cb.value);
+            return [...new Set([..._allPageIds, ...visibleChecked])];
+        }
+        return [...document.querySelectorAll('.order-check:checked')].map(cb => cb.value);
+    }
+
+    // ── Bulk Copy Selected ────────────────────────────────────────────────
+    async function bulkCopySelected() {
+        const ids = getSelectedIds();
+        if (!ids.length) { showToast('Select at least one order first.', true); return; }
+
+        const btn = document.getElementById('bulkCopyBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Copying...';
+
+        const form = new FormData();
+        ids.forEach(id => form.append('order_ids', id));
+        form.append('network', 'MTN');
+        form.append('csrfmiddlewaretoken', CSRF);
+
+        try {
+            const res  = await fetch('/admin-panel/orders/bulk-copy/', { method: 'POST', body: form });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, true); return; }
+
+            navigator.clipboard.writeText(data.copy_text).catch(() => {});
+            document.getElementById('copyText').value              = data.copy_text;
+            document.getElementById('copyResultBox').style.display = 'block';
+            document.getElementById('copyResultTitle').textContent = `Bulk Copy ${data.copy_number}`;
+            showToast(`Bulk Copy ${data.copy_number} — ${data.count} orders copied`);
+            loadBulkSessions();
+
+            // Update visible rows inline
+            document.querySelectorAll('.order-check:checked').forEach(cb => {
+                const cell = document.getElementById(`status-${cb.value}`);
+                if (cell) cell.innerHTML = `<span class="badge badge-warning">Processing</span>`;
+                cb.dataset.status = 'processing';
+            });
+
+            // Reset cross-page selection
+            clearAllPages();
+
+        } catch(e) {
+            showToast('Copy failed. Try again.', true);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-copy"></i> Copy Selected';
+        }
+    }
+
+    // ── Bulk Mark Selected Delivered ──────────────────────────────────────
+    async function bulkMarkDeliveredSelected() {
+        const ids = getSelectedIds();
+        if (!ids.length) { showToast('Select at least one order first.', true); return; }
+        if (!confirm(`Mark ${ids.length} selected order(s) as Delivered?`)) return;
+
+        const btn = document.getElementById('bulkDeliverBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Updating...';
+
+        const form = new FormData();
+        ids.forEach(id => form.append('order_ids', id));
+        form.append('status', 'delivered');
+        form.append('csrfmiddlewaretoken', CSRF);
+
+        try {
+            const res  = await fetch('/admin-panel/orders/bulk-status/', { method: 'POST', body: form });
+            const data = await res.json();
+
+            // Backend only flips status='processing' orders to 'delivered'.
+            // Pending (never copied/sent) AND Waiting orders are both skipped
+            // on purpose — only Processing orders can become Delivered here.
+            const msg = data.skipped_not_sent
+                ? `${data.updated} marked Delivered — ${data.skipped_not_sent} skipped (still Pending or Waiting)`
+                : `${data.updated} order(s) marked as Delivered`;
+            showToast(msg, !!data.skipped_not_sent);
+
+            document.querySelectorAll('.order-check:checked').forEach(cb => {
+                const cell = document.getElementById(`status-${cb.value}`);
+                // Backend only actually updates status='processing' orders to
+                // 'delivered'. Waiting orders are skipped server-side, so the
+                // badge must NOT be flipped for them here — doing so caused
+                // a false "Delivered" badge that reverted on refresh.
+                if (cell && cb.dataset.status === 'processing') {
+                    cell.innerHTML = `<span class="badge badge-success">Delivered</span>`;
+                }
+                cb.checked = false;
+            });
+            clearAllPages();
+        } catch(e) {
+            showToast('Failed to update.', true);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-check-double"></i> Mark Selected Delivered';
+        }
+    }
+
+    // ── Bulk Delete Selected ──────────────────────────────────────────────
+    async function bulkDeleteSelected() {
+        const ids = getSelectedIds();
+        if (!ids.length) { showToast('Select at least one order first.', true); return; }
+        if (!confirm(`Delete ${ids.length} selected order(s)? This cannot be undone.`)) return;
+
+        const btn = document.getElementById('bulkDeleteBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Deleting...';
+
+        const form = new FormData();
+        ids.forEach(id => form.append('order_ids', id));
+        form.append('csrfmiddlewaretoken', CSRF);
+
+        try {
+            const res  = await fetch('/admin-panel/orders/bulk-delete/', { method: 'POST', body: form });
+            const data = await res.json();
+            showToast(`${data.deleted} order(s) deleted`);
+            document.querySelectorAll('.order-check:checked').forEach(cb => {
+                const row = document.getElementById(`row-${cb.value}`);
+                if (row) row.remove();
+            });
+            clearAllPages();
+        } catch(e) {
+            showToast('Delete failed.', true);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-trash"></i> Delete Selected';
+        }
+    }
+
+    // ── Copy All Pending ──────────────────────────────────────────────────
+    async function copyAllPending() {
+        const btn = document.getElementById('copyAllBtn');
+        if (!btn) return;
+        if (!confirm('Copy ALL pending paid MTN orders (across all dates) and mark as processing?')) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Copying...';
+
+        const form = new FormData();
+        form.append('network', 'MTN');
+        form.append('csrfmiddlewaretoken', CSRF);
+
+        try {
+            const res  = await fetch('/admin-panel/orders/bulk-copy/', { method: 'POST', body: form });
+            const data = await res.json();
+            if (data.error) {
+                showToast(data.error, true);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-copy"></i> Copy All Pending';
+                return;
+            }
+            navigator.clipboard.writeText(data.copy_text).catch(() => {
+                prompt(`Copy this text (${data.count} orders):`, data.copy_text);
+            });
+            document.getElementById('copyText').value              = data.copy_text;
+            document.getElementById('copyResultBox').style.display = 'block';
+            document.getElementById('copyResultTitle').textContent = `Bulk Copy ${data.copy_number} — All Pending`;
+            showToast(`✅ ${data.count} orders copied & marked as processing`);
+            loadBulkSessions();
+            setTimeout(() => location.reload(), 1800);
+        } catch(e) {
+            showToast('Copy failed. Try again.', true);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-copy"></i> Copy All Pending';
+        }
+    }
+
+    // ── Excel Download ────────────────────────────────────────────────────
+    function excelDownload() {
+        const rows = [...document.querySelectorAll('tbody tr')];
+        let csv = 'No,Number,GB,Type,Status,Agent,Price,Date\n';
+        rows.forEach((row, i) => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length < 10) return;
+            csv += `${i+1},${cells[3].innerText.trim()},${cells[4].innerText.trim()},${cells[5].innerText.trim()},${cells[6].innerText.trim()},${cells[7].innerText.trim()},${cells[8].innerText.trim()},${cells[9].innerText.trim()}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `MTN_manual_orders_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // ── Load Bulk Sessions ────────────────────────────────────────────────
+    async function loadBulkSessions() {
+        const container = document.getElementById('bulkSessionsList');
+        container.innerHTML = '<div style="color:var(--muted); font-size:0.9rem; padding:12px 0;">Loading...</div>';
+        try {
+            const res  = await fetch('/admin-panel/orders/bulk-sessions/');
+            const data = await res.json();
+            if (!data.sessions || !data.sessions.length) {
+                container.innerHTML = `<div style="padding:24px; text-align:center; color:var(--muted);">
+                    <i class="fa fa-inbox" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:8px;"></i>
+                    No bulk copy sessions yet.</div>`;
+                return;
+            }
+            container.innerHTML = '';
+            data.sessions.forEach(s => {
+                const card = document.createElement('div');
+                card.id = `session-card-${s.id}`;
+                card.style.cssText = 'margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:14px 18px; border-radius:10px; border:1px solid var(--border, rgba(0,0,0,0.08)); background:var(--bg2, rgba(0,0,0,0.02));';
+                card.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                        <span style="font-weight:700; font-size:0.95rem;">
+                            <i class="fa fa-layer-group" style="color:var(--primary);"></i>
+                            Bulk Copy ${s.copy_number}
+                        </span>
+                        <span class="badge badge-info">${s.count} orders</span>
+                        <span style="font-size:0.82rem; color:var(--muted);">${s.date} • ${s.time}</span>
+                    </div>
+                    <div id="session-actions-${s.id}">
+                        ${s.processing_count === 0
+                            ? `<span style="font-size:1.1rem; font-weight:700; color:var(--success,#00c853);">✅ Delivered</span>`
+                            : `<button onclick="markBulkDelivered(${s.id},${s.copy_number},${s.count})"
+                                    class="btn btn-sm"
+                                    style="background:rgba(0,200,83,0.15);color:var(--primary);border:1px solid rgba(0,200,83,0.3);">
+                                    <i class="fa fa-check-double"></i> Mark ${s.processing_count} Delivered
+                               </button>`
+                        }
+                    </div>`;
+                container.appendChild(card);
+            });
+        } catch(err) {
+            container.innerHTML = '<div style="color:var(--muted); padding:12px;">Failed to load sessions.</div>';
+        }
+    }
+
+    // ── Mark Bulk Session Delivered ───────────────────────────────────────
+    async function markBulkDelivered(sessionId, copyNumber, count) {
+        if (!confirm(`Mark all ${count} orders in Bulk Copy ${copyNumber} as Delivered?`)) return;
+        const form = new FormData();
+        form.append('session_id', sessionId);
+        form.append('csrfmiddlewaretoken', CSRF);
+        try {
+            const res  = await fetch('/admin-panel/orders/bulk-session-deliver/', { method: 'POST', body: form });
+            const data = await res.json();
+            if (data.updated !== undefined) {
+                const skipped = count - data.updated;
+                if (skipped > 0) {
+                    // Only Processing orders get flipped server-side; Waiting
+                    // orders in this session are left untouched on purpose.
+                    // Don't show the batch as fully "Delivered" when it isn't.
+                    document.getElementById(`session-actions-${sessionId}`).innerHTML =
+                        `<span style="font-size:0.95rem;font-weight:700;color:var(--warning,#ff9800);">⚠️ ${data.updated}/${count} Delivered</span>`;
+                    showToast(`Bulk Copy ${copyNumber}: ${data.updated} marked Delivered — ${skipped} still Waiting`, true);
+                } else {
+                    document.getElementById(`session-actions-${sessionId}`).innerHTML =
+                        `<span style="font-size:1.1rem;font-weight:700;color:var(--success,#00c853);">✅ Delivered</span>`;
+                    showToast(`Bulk Copy ${copyNumber}: ${data.updated} orders marked as Delivered`);
+                }
+            } else {
+                showToast('Something went wrong.', true);
+            }
+        } catch(err) {
+            showToast('Failed to mark as delivered.', true);
+        }
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────
+    function showToast(msg, isError = false) {
+        const t = document.createElement('div');
+        t.textContent = msg;
+        t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;
+            background:${isError ? '#e53935' : '#00c853'};color:${isError ? '#fff' : '#000'};
+            padding:12px 20px;border-radius:8px;font-size:0.9rem;font-weight:600;
+            box-shadow:0 4px 16px rgba(0,0,0,0.3);opacity:1;transition:opacity .4s;`;
+        document.body.appendChild(t);
+        setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(),400); }, 2500);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadBulkSessions);
+</script>
+{% endblock %}

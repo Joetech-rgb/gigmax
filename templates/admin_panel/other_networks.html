@@ -1,0 +1,492 @@
+﻿{% extends 'base.html' %}
+{% block title %}Other Networks â€” Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
+            <h1 class="page-title" style="margin-bottom:0;">Other Networks (Telecel & AT)</h1>
+            <span class="badge badge-info" style="font-size:0.85rem; padding:6px 14px;">
+                {{ orders|length }} Orders
+            </span>
+        </div>
+
+        <!-- Filters -->
+        <form method="get" class="card" style="margin-bottom:20px; padding:16px 20px;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                <input type="text" name="search" value="{{ request.GET.search }}"
+                       class="form-control" placeholder="Search recipient or order ID..."
+                       style="flex:1; min-width:160px;">
+                <select name="network" class="form-control" style="width:180px; flex-shrink:0;">
+                    <option value="">All Networks</option>
+                    <option value="TELECEL"     {% if request.GET.network == 'TELECEL' %}selected{% endif %}>Telecel</option>
+                    <option value="AT_NOEXPIRY" {% if request.GET.network == 'AT_NOEXPIRY' %}selected{% endif %}>AT Non-Expiry</option>
+                    <option value="AT_EXPIRY"   {% if request.GET.network == 'AT_EXPIRY' %}selected{% endif %}>AT Expiry</option>
+                </select>
+                <input type="date" name="date_from" value="{{ request.GET.date_from }}"
+                       class="form-control" style="width:150px; flex-shrink:0;">
+                <input type="date" name="date_to"   value="{{ request.GET.date_to }}"
+                       class="form-control" style="width:150px; flex-shrink:0;">
+                <select name="status_filter" class="form-control" style="width:170px; flex-shrink:0;">
+                    <option value="">All Statuses</option>
+                    <option value="pending"         {% if request.GET.status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="pending_payment" {% if request.GET.status_filter == 'pending_payment' %}selected{% endif %}>Pending Payment</option>
+                    <option value="processing"      {% if request.GET.status_filter == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="waiting"         {% if request.GET.status_filter == 'waiting' %}selected{% endif %}>Waiting</option>
+                    <option value="refunded"        {% if request.GET.status_filter == 'refunded' %}selected{% endif %}>Refunded</option>
+                    <option value="delivered"       {% if request.GET.status_filter == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="failed"          {% if request.GET.status_filter == 'failed' %}selected{% endif %}>Failed</option>
+                </select>
+                <button type="submit" class="btn btn-primary" style="flex-shrink:0;">
+                    <i class="fa fa-search"></i> Filter
+                </button>
+            </div>
+        </form>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+            <button onclick="openBulkCopyModal()" class="btn btn-outline">
+                <i class="fa fa-copy"></i> Bulk Copy by Network
+            </button>
+            <button onclick="openExcelModal()" class="btn btn-outline">
+                <i class="fa fa-file-excel"></i> Excel Download
+            </button>
+            <button onclick="openBulkDeliver()" class="btn btn-primary">
+                <i class="fa fa-check-double"></i> Bulk Change to Delivered
+            </button>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="card" style="padding:0; overflow:hidden;">
+            <div class="table-wrap">
+                <table style="min-width:960px; width:100%;">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">
+                                <input type="checkbox" id="selectAll" onclick="toggleAll()"
+                                       style="accent-color:var(--primary);">
+                            </th>
+                            <th style="width:40px;">#</th>
+                            <th style="width:120px;">Order ID</th>
+                            <th style="width:110px;">Network</th>
+                            <th style="width:120px;">Recipient</th>
+                            <th style="width:70px;">GB</th>
+                            <th style="width:100px;">Status</th>
+                            <th style="width:130px;">Agent</th>
+                            <th style="width:90px;">Price</th>
+                            <th style="width:100px;">Date</th>
+                            <th style="width:130px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in orders %}
+                        <tr>
+                            <td>
+                                {% if o.status == 'pending' or o.status == 'processing' %}
+                                <input type="checkbox" class="order-check"
+                                       value="{{ o.order_id }}"
+                                       data-recipient="{{ o.recipient }}"
+                                       data-gb="{{ o.gb_package.gb_size|floatformat:0 }}"
+                                       data-network="{{ o.network }}"
+                                       style="accent-color:var(--primary);">
+                                {% endif %}
+                            </td>
+                            <td style="color:var(--muted); font-size:0.85rem;">{{ forloop.counter }}</td>
+                            <td>
+                                <code style="font-size:0.8rem;">{{ o.order_id }}</code>
+                                {% if o.source == 'generated_link' %}
+                                <span class="badge badge-info" style="font-size:0.65rem; margin-left:4px;">GL</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge
+                                    {% if o.network == 'TELECEL' %}badge-success
+                                    {% else %}badge-info{% endif %}"
+                                    style="font-size:0.75rem;">
+                                    {{ o.network }}
+                                </span>
+                            </td>
+                            <td><strong>{{ o.recipient }}</strong></td>
+                            <td>{{ o.gb_package.gb_size|floatformat:0 }}GB</td>
+                            <td>
+                                <span class="badge
+                                    {% if o.status == 'delivered' %}badge-success
+                                    {% elif o.status == 'processing' %}badge-warning
+                                    {% elif o.status == 'failed' %}badge-danger
+                                    {% else %}badge-muted{% endif %}">
+                                    {{ o.get_status_display }}
+                                </span>
+                            </td>
+                            <td style="font-size:0.85rem;">{{ o.placed_by.full_name|default:"Customer" }}</td>
+                            <td style="font-size:0.85rem;">GHS {{ o.price_paid }}</td>
+                            <td style="color:var(--muted); font-size:0.8rem; white-space:nowrap;">
+                                {{ o.created_at|date:"d M H:i" }}
+                            </td>
+                            <td>
+                                <form method="post" action="/admin-panel/orders/{{ o.order_id }}/status/"
+                                      style="margin:0;">
+                                    {% csrf_token %}
+                                    <select name="status" class="form-control"
+                                            style="padding:4px 8px; font-size:0.8rem; width:120px;"
+                                            onchange="this.form.submit()">
+                                        <option value="pending"    {% if o.status == 'pending'    %}selected{% endif %}>Pending</option>
+                                        <option value="processing" {% if o.status == 'processing' %}selected{% endif %}>Processing</option>
+                                        <option value="waiting"    {% if o.status == 'waiting'    %}selected{% endif %}>Waiting</option>
+                                        <option value="refunded"  {% if o.status == 'refunded'  %}selected{% endif %}>Refunded</option>
+                                        <option value="delivered"  {% if o.status == 'delivered'  %}selected{% endif %}>Delivered</option>
+                                        <option value="failed"     {% if o.status == 'failed'     %}selected{% endif %}>Failed</option>
+                                    </select>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" style="text-align:center; color:var(--muted); padding:48px;">
+                                <i class="fa fa-network-wired" style="font-size:2rem; display:block; margin-bottom:12px; opacity:0.3;"></i>
+                                No orders found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Copy Result Box -->
+        <div id="copyResultBox" style="display:none; margin-top:20px;" class="card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <p class="section-title" style="margin:0;">ðŸ“‹ Copied Orders</p>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('copyText').value); showToast('Copied again!')"
+                        class="btn btn-outline btn-sm">
+                    <i class="fa fa-copy"></i> Copy Again
+                </button>
+            </div>
+            <textarea id="copyText" class="form-control" rows="12" readonly
+                      style="font-family:monospace; font-size:0.9rem; resize:vertical;"></textarea>
+        </div>
+
+    </main>
+</div>
+
+<!-- â”€â”€ Bulk Copy Modal (RADIO â€” one network only) â”€â”€ -->
+<div class="modal-overlay" id="bulkCopyModal">
+    <div class="modal-box" style="max-width:420px;">
+        <button class="modal-close"
+                onclick="document.getElementById('bulkCopyModal').classList.remove('open')">âœ•</button>
+        <p class="modal-title"><i class="fa fa-copy" style="color:var(--primary);"></i> Bulk Copy by Network</p>
+        <p style="color:var(--muted); font-size:0.85rem; margin-bottom:20px;">
+            Select <strong>one</strong> network â€” only pending orders for that network will be copied
+            and marked as Processing.
+        </p>
+
+        <!-- RADIO buttons â€” only one can be selected -->
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
+            <label style="display:flex; align-items:center; gap:12px; cursor:pointer;
+                          padding:12px 16px; border-radius:8px; border:1px solid var(--border);
+                          transition:border-color .2s;" id="lbl-TELECEL">
+                <input type="radio" name="copyNetwork" value="TELECEL"
+                       onchange="highlightRadio()"
+                       style="accent-color:var(--primary); width:16px; height:16px;">
+                <span>Telecel</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:12px; cursor:pointer;
+                          padding:12px 16px; border-radius:8px; border:1px solid var(--border);
+                          transition:border-color .2s;" id="lbl-AT_EXPIRY">
+                <input type="radio" name="copyNetwork" value="AT_EXPIRY"
+                       onchange="highlightRadio()"
+                       style="accent-color:var(--primary); width:16px; height:16px;">
+                <span>AT Expiry</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:12px; cursor:pointer;
+                          padding:12px 16px; border-radius:8px; border:1px solid var(--border);
+                          transition:border-color .2s;" id="lbl-AT_NOEXPIRY">
+                <input type="radio" name="copyNetwork" value="AT_NOEXPIRY"
+                       onchange="highlightRadio()"
+                       style="accent-color:var(--primary); width:16px; height:16px;">
+                <span>AT Non-Expiry</span>
+            </label>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+            <button onclick="doBulkCopyByNetwork()" class="btn btn-primary" style="flex:1;">
+                <i class="fa fa-copy"></i> Copy & Mark Processing
+            </button>
+            <button onclick="document.getElementById('bulkCopyModal').classList.remove('open')"
+                    class="btn btn-outline">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- â”€â”€ Excel Download Modal (RADIO â€” one network only) â”€â”€ -->
+<div class="modal-overlay" id="excelModal">
+    <div class="modal-box" style="max-width:420px;">
+        <button class="modal-close"
+                onclick="document.getElementById('excelModal').classList.remove('open')">âœ•</button>
+        <p class="modal-title"><i class="fa fa-file-excel" style="color:var(--primary);"></i> Excel Download by Network</p>
+        <p style="color:var(--muted); font-size:0.85rem; margin-bottom:20px;">
+            Select <strong>one</strong> network to download its orders as CSV.
+        </p>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">
+            <label style="display:flex; align-items:center; gap:12px; cursor:pointer;
+                          padding:12px 16px; border-radius:8px; border:1px solid var(--border);"
+                   id="xlbl-TELECEL">
+                <input type="radio" name="excelNetwork" value="TELECEL"
+                       onchange="highlightExcelRadio()"
+                       style="accent-color:var(--primary); width:16px; height:16px;">
+                <span>Telecel</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:12px; cursor:pointer;
+                          padding:12px 16px; border-radius:8px; border:1px solid var(--border);"
+                   id="xlbl-AT_EXPIRY">
+                <input type="radio" name="excelNetwork" value="AT_EXPIRY"
+                       onchange="highlightExcelRadio()"
+                       style="accent-color:var(--primary); width:16px; height:16px;">
+                <span>AT Expiry</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:12px; cursor:pointer;
+                          padding:12px 16px; border-radius:8px; border:1px solid var(--border);"
+                   id="xlbl-AT_NOEXPIRY">
+                <input type="radio" name="excelNetwork" value="AT_NOEXPIRY"
+                       onchange="highlightExcelRadio()"
+                       style="accent-color:var(--primary); width:16px; height:16px;">
+                <span>AT Non-Expiry</span>
+            </label>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+            <button onclick="doExcelDownload()" class="btn btn-primary" style="flex:1;">
+                <i class="fa fa-download"></i> Download
+            </button>
+            <button onclick="document.getElementById('excelModal').classList.remove('open')"
+                    class="btn btn-outline">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- â”€â”€ Bulk Deliver Modal â”€â”€ -->
+<div class="modal-overlay" id="bulkDeliverModal">
+    <div class="modal-box" style="max-width:580px;">
+        <button class="modal-close" onclick="closeBulkDeliver()">âœ•</button>
+        <p class="modal-title"><i class="fa fa-check-double" style="color:var(--primary);"></i> Bulk Change to Delivered</p>
+        <p style="color:var(--muted); font-size:0.85rem; margin-bottom:16px;">
+            Select the orders to mark as Delivered:
+        </p>
+        <div id="batchList" style="max-height:380px; overflow-y:auto; margin-bottom:16px;
+                                    border:1px solid var(--border); border-radius:8px;"></div>
+        <div style="display:flex; gap:12px;">
+            <button onclick="confirmBulkDeliver()" class="btn btn-primary" style="flex:1;">
+                <i class="fa fa-check"></i> Confirm Delivered
+            </button>
+            <button onclick="closeBulkDeliver()" class="btn btn-outline">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+
+// â”€â”€ Select All â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function toggleAll() {
+    const all = document.getElementById('selectAll').checked;
+    document.querySelectorAll('.order-check').forEach(cb => cb.checked = all);
+}
+
+// â”€â”€ Radio highlight helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function highlightRadio() {
+    ['TELECEL','AT_EXPIRY','AT_NOEXPIRY'].forEach(net => {
+        const lbl = document.getElementById(`lbl-${net}`);
+        const inp = lbl ? lbl.querySelector('input') : null;
+        if (lbl) lbl.style.borderColor = inp && inp.checked ? 'var(--primary)' : 'var(--border)';
+    });
+}
+function highlightExcelRadio() {
+    ['TELECEL','AT_EXPIRY','AT_NOEXPIRY'].forEach(net => {
+        const lbl = document.getElementById(`xlbl-${net}`);
+        const inp = lbl ? lbl.querySelector('input') : null;
+        if (lbl) lbl.style.borderColor = inp && inp.checked ? 'var(--primary)' : 'var(--border)';
+    });
+}
+
+// â”€â”€ Bulk Copy Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function openBulkCopyModal() {
+    // Reset radio
+    document.querySelectorAll('input[name="copyNetwork"]').forEach(r => r.checked = false);
+    highlightRadio();
+    document.getElementById('bulkCopyModal').classList.add('open');
+}
+
+async function doBulkCopyByNetwork() {
+    const selected = document.querySelector('input[name="copyNetwork"]:checked');
+    if (!selected) { showToast('Please select a network.', true); return; }
+
+    const network = selected.value;
+    const form    = new FormData();
+
+    // Collect ALL pending order IDs for the chosen network from the table
+    const allChecks = [...document.querySelectorAll('.order-check')];
+    const networkOrders = allChecks.filter(cb => cb.dataset.network === network);
+
+    if (!networkOrders.length) {
+        showToast(`No pending/processing orders found for ${network}.`, true);
+        return;
+    }
+
+    networkOrders.forEach(cb => form.append('order_ids', cb.value));
+    form.append('network', network);
+    form.append('csrfmiddlewaretoken', CSRF);
+
+    try {
+        const res  = await fetch('/admin-panel/orders/bulk-copy/', { method: 'POST', body: form });
+        const data = await res.json();
+
+        if (data.error) { showToast(data.error, true); return; }
+
+        // Show copied text
+        document.getElementById('copyText').value = data.copy_text;
+        document.getElementById('copyResultBox').style.display = 'block';
+        navigator.clipboard.writeText(data.copy_text).catch(() => {});
+
+        // Update badges in table to Processing
+        data.order_ids.forEach(oid => {
+            const cb  = document.querySelector(`.order-check[value="${oid}"]`);
+            if (!cb) return;
+            const row = cb.closest('tr');
+            if (!row) return;
+            const badge = row.querySelector('.badge');
+            // Find the status badge (5th td roughly) â€” update it
+            const tds = row.querySelectorAll('td');
+            if (tds[6]) {
+                tds[6].innerHTML = '<span class="badge badge-warning">Processing</span>';
+            }
+        });
+
+        document.getElementById('bulkCopyModal').classList.remove('open');
+        showToast(`Bulk Copy ${data.copy_number} â€” ${data.count} orders copied & marked Processing`);
+
+    } catch(e) {
+        showToast('Copy failed. Try again.', true);
+    }
+}
+
+// â”€â”€ Excel Download Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function openExcelModal() {
+    document.querySelectorAll('input[name="excelNetwork"]').forEach(r => r.checked = false);
+    highlightExcelRadio();
+    document.getElementById('excelModal').classList.add('open');
+}
+
+function doExcelDownload() {
+    const selected = document.querySelector('input[name="excelNetwork"]:checked');
+    if (!selected) { showToast('Please select a network.', true); return; }
+
+    const network = selected.value;
+    const allChecks = [...document.querySelectorAll('.order-check')];
+    const networkOrders = allChecks.filter(cb => cb.dataset.network === network);
+
+    if (!networkOrders.length) {
+        showToast(`No orders found for ${network}.`, true);
+        return;
+    }
+
+    // Build CSV for this network only
+    const LABELS = { TELECEL: 'Telecel', AT_EXPIRY: 'AT', AT_NOEXPIRY: 'AT NON-EXPIRY' };
+    let csv = `Number,GB,Network\n`;
+    networkOrders.forEach(cb => {
+        csv += `${cb.dataset.recipient},${cb.dataset.gb},${LABELS[network] || network}\n`;
+    });
+
+    const blob     = new Blob([csv], { type: 'text/csv' });
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement('a');
+    a.href         = url;
+    a.download     = `${network}_orders_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    document.getElementById('excelModal').classList.remove('open');
+    showToast(`Downloaded ${networkOrders.length} ${network} orders`);
+}
+
+// â”€â”€ Bulk Deliver Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function openBulkDeliver() {
+    const orders = [...document.querySelectorAll('.order-check')];
+    const list   = document.getElementById('batchList');
+    list.innerHTML = '';
+
+    if (!orders.length) {
+        showToast('No pending/processing orders available.', true);
+        return;
+    }
+
+    orders.forEach((cb, i) => {
+        const row = document.createElement('label');
+        row.style.cssText = `
+            display:flex; align-items:center; gap:12px;
+            padding:10px 16px; cursor:pointer;
+            border-bottom:1px solid var(--border);
+            transition:background .15s;
+        `;
+        row.onmouseenter = () => row.style.background = 'var(--surface2)';
+        row.onmouseleave = () => row.style.background = '';
+        row.innerHTML = `
+            <input type="checkbox" class="deliver-check" value="${cb.value}"
+                   style="accent-color:var(--primary); width:16px; height:16px; flex-shrink:0;">
+            <span style="color:var(--muted); font-size:0.8rem; min-width:24px;">${i+1}.</span>
+            <strong style="flex:1;">${cb.dataset.recipient}</strong>
+            <span style="color:var(--muted);">${cb.dataset.gb}GB</span>
+            <span class="badge badge-info" style="font-size:0.7rem;">${cb.dataset.network}</span>
+        `;
+        list.appendChild(row);
+    });
+
+    document.getElementById('bulkDeliverModal').classList.add('open');
+}
+
+function closeBulkDeliver() {
+    document.getElementById('bulkDeliverModal').classList.remove('open');
+}
+
+async function confirmBulkDeliver() {
+    const selected = [...document.querySelectorAll('.deliver-check:checked')];
+    if (!selected.length) { showToast('Select at least one order.', true); return; }
+
+    const form = new FormData();
+    selected.forEach(cb => form.append('order_ids', cb.value));
+    form.append('status', 'delivered');
+    form.append('csrfmiddlewaretoken', CSRF);
+
+    try {
+        const res  = await fetch('/admin-panel/orders/bulk-status/', { method: 'POST', body: form });
+        const data = await res.json();
+        closeBulkDeliver();
+        showToast(`${data.updated} orders marked as Delivered`);
+        setTimeout(() => location.reload(), 1200);
+    } catch(e) {
+        showToast('Update failed. Try again.', true);
+    }
+}
+
+// â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function showToast(msg, isError = false) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = `
+        position:fixed; bottom:24px; right:24px; z-index:9999;
+        background:${isError ? '#e53935' : '#00c853'};
+        color:${isError ? '#fff' : '#000'};
+        padding:12px 20px; border-radius:8px; font-size:0.9rem; font-weight:600;
+        box-shadow:0 4px 16px rgba(0,0,0,0.3); opacity:1; transition:opacity .4s;
+    `;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2800);
+}
+</script>
+{% endblock %}

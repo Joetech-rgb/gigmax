@@ -1,0 +1,44 @@
+﻿{% extends 'base.html' %}
+{% block title %}Login – SK Plug{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-logo"><span class="brand-dot"></span> SK Plug</div>
+        <h1 class="auth-title">Welcome back</h1>
+        <p class="auth-sub">Sign in to your account</p>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" name="phone_number" autocomplete="off" class="form-control" placeholder="0XX XXX XXXX" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" autocomplete="new-password" class="form-control" placeholder="••••••••" required>
+            </div>
+            <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <input type="checkbox" name="remember_me" id="remember_me" style="width:16px; height:16px; cursor:pointer;">
+                <label for="remember_me" style="margin:0; font-size:0.9rem; color:var(--muted); cursor:pointer;">Keep me signed in</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+        </form>
+
+        <div class="auth-links">
+            <a href="/accounts/password-reset/">Forgot Password?</a>
+        </div>
+    </div>
+</div>
+<style>
+.auth-wrap { min-height: calc(100vh - 65px); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.auth-card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; }
+.auth-logo { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
+.auth-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; }
+.auth-sub { color: var(--muted); margin-bottom: 28px; }
+.auth-links { display: flex; gap: 12px; justify-content: center; margin-top: 20px; font-size: 0.85rem; color: var(--muted); }
+</style>
+{% endblock %}

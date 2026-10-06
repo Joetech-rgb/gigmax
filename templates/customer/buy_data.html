@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Buy Data - SK Plug{% endblock %}
+
+{% block body %}
+<div style="max-width: 800px; margin: 40px auto; padding: 20px;">
+    <h1 style="text-align: center;">Buy Data Bundle</h1>
+    <div style="text-align:center; margin-bottom:16px;">
+        <a href="/accounts/signup/" style="font-weight:600; font-size:0.9rem; color:green;">
+            Become a RESELLER / AGENT / DEALER
+        </a>
+    </div>
+
+    {% if promo_packages %}
+    <div style="background: linear-gradient(135deg, #ff6b6b, #ff8e53); padding: 15px; border-radius: 10px; margin-bottom: 25px; color: white; text-align: center;">
+        <h3 style="margin: 0;">HOT PROMO OFFER!</h3>
+        <p>Get discounted bundles while stocks last!</p>
+    </div>
+    {% endif %}
+
+    <form method="POST" id="buyDataForm">
+        {% csrf_token %}
+
+        <div style="margin-bottom: 25px;">
+            <label>Select Network:</label>
+            <select name="network" id="network" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px;" required>
+                <option value="">-- Select Network --</option>
+                <option value="MTN">MTN</option>
+                <option value="TELECEL">Telecel</option>
+                <option value="AT_NOEXPIRY">AT Non-Expiry</option>
+                <option value="AT_EXPIRY">AT Expiry</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <label>Select Package:</label>
+            <select name="package_id" id="package" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px;" required>
+                <option value="">-- Select a network first --</option>
+                {% for package in packages %}
+                <option value="{{ package.id }}"
+                        data-network="{{ package.network }}"
+                        {% if package.is_promo %}style="background:#fff3e0; color:#ff6b6b; font-weight:bold;"{% endif %}>
+                    {{ package.gb_size|floatformat:0 }}GB - GHS{{ package.customer_price }}
+                    {% if package.is_promo %} [PROMO] {% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <small id="package-hint" style="color:#888; font-size:0.8rem;">
+                Please select a network to see available packages.
+            </small>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <label>Phone Number:</label>
+            <input type="tel" name="phone" id="phone" placeholder="024XXXXXXX"
+                   pattern="0[0-9]{9}" maxlength="10" minlength="10"
+                   title="Must be 10 digits starting with 0"
+                   style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px;" required>
+            <small id="phone-error" style="color:red; font-size:0.8rem; display:none;">
+                ⚠️ Phone must be exactly 10 digits and start with 0
+            </small>
+        </div>
+
+        <button type="submit" style="width: 100%; padding: 15px; background: #0d6efd; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+            Continue to Payment
+        </button>
+    </form>
+
+    <div style="text-align:center; margin-top:24px;">
+        <a href="/afa/apply/" style="color:#00C853; font-weight:600;">
+            <i class="fa fa-id-card"></i> Looking for AFA Bundle? Click here
+        </a>
+    </div>
+</div>
+
+<script>
+// ── Network filter — show only packages matching selected network ──
+const networkSel = document.getElementById('network');
+const packageSel = document.getElementById('package');
+const packageHint = document.getElementById('package-hint');
+
+networkSel.addEventListener('change', function () {
+    const chosen = this.value;
+    packageSel.value = '';  // reset package selection
+
+    let visibleCount = 0;
+    [...packageSel.options].forEach(opt => {
+        if (!opt.value) return;  // skip placeholder
+        const match = opt.dataset.network === chosen;
+        opt.hidden = !match;
+        if (match) visibleCount++;
+    });
+
+    if (chosen && visibleCount === 0) {
+        packageHint.textContent = 'No packages available for this network.';
+        packageHint.style.color = 'red';
+    } else if (chosen) {
+        packageHint.textContent = visibleCount + ' package(s) available.';
+        packageHint.style.color = 'green';
+    } else {
+        packageHint.textContent = 'Please select a network to see available packages.';
+        packageHint.style.color = '#888';
+    }
+});
+
+// Fire on load if network is pre-selected (e.g. from ?network=MTN links on homepage)
+if (networkSel.value) networkSel.dispatchEvent(new Event('change'));
+
+// ── Phone number validation ──
+document.getElementById('phone').addEventListener('input', function () {
+    const val = this.value.trim();
+    const err = document.getElementById('phone-error');
+    const invalid = !/^0[0-9]{9}$/.test(val) && val.length > 0;
+    err.style.display = invalid ? 'block' : 'none';
+    this.style.borderColor = invalid ? 'red' : '#ddd';
+});
+
+// ── Form submit — inject package_id into action URL ──
+document.getElementById('buyDataForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const phone = document.getElementById('phone').value;
+    if (!/^0[0-9]{9}$/.test(phone)) {
+        document.getElementById('phone-error').style.display = 'block';
+        document.getElementById('phone').focus();
+        return;
+    }
+
+    const packageId = document.getElementById('package').value;
+    if (!packageId) {
+        alert('Please select a package.');
+        document.getElementById('package').focus();
+        return;
+    }
+
+    this.action = `/payment/initiate/${packageId}/`;
+    this.submit();
+});
+</script>
+{% endblock %}

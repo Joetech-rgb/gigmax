@@ -1,0 +1,72 @@
+﻿{% extends 'base.html' %}
+{% block title %}API Docs â€” SK Plug<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert('API Key copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; max-width:800px;">
+        <h1 class="page-title">API Documentation</h1>
+
+        {% if not has_api %}
+        <div class="card" style="text-align:center; padding:40px;">
+            <p style="color:var(--muted); margin-bottom:20px;">You don't have API access yet.</p>
+            <form method="post" action="/agent/request-api/">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">Request API Access</button>
+            </form>
+        </div>
+        {% else %}
+        <div class="card" style="margin-bottom:20px;">
+            <p class="section-title">Your API Token</p>
+            <code style="background:var(--surface2); padding:12px 16px; border-radius:8px; display:block; word-break:break-all;">
+                {{ token }}
+            </code>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+            <p class="section-title">Base URL</p>
+            <code>{{ request.scheme }}://{{ request.get_host }}/api/v1/</code>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+            <p class="section-title">Authentication</p>
+            <p style="color:var(--muted); font-size:0.9rem;">Include your token in every request header:</p>
+            <pre style="background:var(--surface2); padding:16px; border-radius:8px; margin-top:8px; overflow-x:auto; font-size:0.85rem;">Authorization: Bearer YOUR_TOKEN</pre>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+            <p class="section-title">POST /api/v1/order/ â€” Place Order</p>
+            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">{
+  "recipient": "0557581711",
+  "network": "MTN",
+  "gb_size": "5"
+}</pre>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+            <p class="section-title">GET /api/v1/orders/ â€” List My Orders</p>
+            <p style="color:var(--muted); font-size:0.9rem;">Returns all orders placed via API.</p>
+        </div>
+
+        <div class="card">
+            <p class="section-title">GET /api/v1/bundles/ â€” List Available Bundles</p>
+            <p style="color:var(--muted); font-size:0.9rem;">Returns all active bundle packages.</p>
+        </div>
+        {% endif %}
+    </main>
+</div>
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert('API Key copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}
+

@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}Refund Requests{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+        <h1 class="page-title"><i class="fa fa-rotate-left"></i> Refund Requests</h1>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Summary Cards -->
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #FFA000;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Pending Payout</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#FFA000;">{{ pending_count }}</div>
+                <div style="font-size:0.85rem; color:#FFA000;">GHS {{ pending_total|floatformat:2 }}</div>
+            </div>
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #00C853;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Already Paid</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#00C853;">{{ paid_count }}</div>
+                <div style="font-size:0.85rem; color:#00C853;">GHS {{ paid_total|floatformat:2 }}</div>
+            </div>
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid var(--primary);">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Total Requests</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--primary);">{{ total_requests }}</div>
+            </div>
+        </div>
+
+        {% csrf_token %}
+
+        <form id="refund-form">
+            <div style="margin-bottom:16px;">
+                <button type="submit" class="btn btn-danger" id="confirm-paid-btn" disabled>
+                    Confirm Paid (<span id="selected-count">0</span> selected)
+                </button>
+            </div>
+
+            <div class="card table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="select-all"></th>
+                            <th>Order #</th>
+                            <th>Recipient</th>
+                            <th>Network</th>
+                            <th>Retail Paid (GHS)</th>
+                            <th>Agent Payout (GHS)</th>
+                            <th>Requested</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr>
+                            <td>
+                                {% if not row.is_paid %}
+                                <input type="checkbox" name="order_ids" value="{{ row.order.order_id }}" class="order-checkbox">
+                                {% else %}
+                                <i class="fa fa-check" style="color:#00C853;"></i>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.order.order_id }}</td>
+                            <td>{{ row.order.recipient }}</td>
+                            <td>{{ row.order.network }}</td>
+                            <td>GHS {{ row.retail_price|floatformat:2 }}</td>
+                            <td style="font-weight:600; color:#E91E63;">GHS {{ row.agent_cost|floatformat:2 }}</td>
+                            <td>{{ row.order.created_at|date:"d M Y H:i" }}</td>
+                            <td>
+                                {% if row.is_paid %}
+                                <span style="color:#00C853; font-weight:600;">Paid</span>
+                                {% if row.paid_at %}
+                                <div style="font-size:0.75rem; color:var(--muted);">{{ row.paid_at|date:"d M Y H:i" }}</div>
+                                {% endif %}
+                                {% else %}
+                                <span style="color:#FFA000; font-weight:600;">Pending</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" style="text-align:center; color:var(--muted); padding:32px;">No refund requests.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </main>
+</div>
+
+<script>
+const selectAll = document.getElementById('select-all');
+const checkboxes = document.querySelectorAll('.order-checkbox');
+const confirmBtn = document.getElementById('confirm-paid-btn');
+const selectedCountEl = document.getElementById('selected-count');
+
+function updateSelectedCount() {
+    const checked = document.querySelectorAll('.order-checkbox:checked').length;
+    selectedCountEl.textContent = checked;
+    confirmBtn.disabled = checked === 0;
+}
+
+selectAll.addEventListener('change', function() {
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateSelectedCount();
+});
+
+checkboxes.forEach(cb => cb.addEventListener('change', updateSelectedCount));
+
+document.getElementById('refund-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const checked = Array.from(document.querySelectorAll('.order-checkbox:checked')).map(cb => cb.value);
+    if (checked.length === 0) return;
+
+    const confirmed = confirm('Mark ' + checked.length + ' refund request(s) as PAID? This cannot be easily undone.');
+    if (!confirmed) return;
+
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Processing...';
+
+    try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        const formData = new URLSearchParams();
+        checked.forEach(id => formData.append('order_ids', id));
+
+        const res = await fetch('/admin-panel/refund-requests/mark-paid/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData,
+        });
+        const data = await res.json();
+        let msg = 'Marked ' + data.updated + ' order(s) as paid.';
+        if (data.already_paid_skipped) {
+            msg += ' Skipped ' + data.already_paid_skipped + ' (already paid).';
+        }
+        alert(msg);
+        window.location.reload();
+    } catch (err) {
+        alert('Error updating orders. Please try again.');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Confirm Paid (' + checked.length + ' selected)';
+    }
+});
+</script>
+{% endblock %}

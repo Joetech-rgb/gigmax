@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}Wallet Top-up – Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; max-width:700px;">
+        <h1 class="page-title">Wallet Top-up</h1>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Search -->
+        <div class="card" style="margin-bottom:24px;">
+            <p class="section-title">Find Agent or User</p>
+            <form method="get">
+                <div style="display:flex; gap:12px;">
+                    <input type="text" name="search" value="{{ search }}"
+                           class="form-control" placeholder="Search by name, phone, or email..." style="flex:1;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa fa-search"></i> Search
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Result -->
+        {% if search and not found_user %}
+        <div class="card" style="text-align:center; padding:32px; color:var(--muted);">
+            <i class="fa fa-user-slash" style="font-size:2rem; margin-bottom:12px; display:block;"></i>
+            No user found for "{{ search }}"
+        </div>
+        {% endif %}
+
+        {% if found_user %}
+        <div class="card" style="margin-bottom:24px;">
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
+                <div style="width:48px; height:48px; border-radius:50%; background:rgba(0,200,83,0.15);
+                            display:flex; align-items:center; justify-content:center;
+                            font-family:'Syne',sans-serif; font-weight:700; color:var(--primary); font-size:1.1rem;">
+                    {{ found_user.full_name|slice:":2"|upper }}
+                </div>
+                <div>
+                    <p style="font-weight:700; font-size:1rem;">{{ found_user.full_name }}</p>
+                    <p style="font-size:0.85rem; color:var(--muted);">{{ found_user.phone_number }} &mdash; {{ found_user.get_role_display }}</p>
+                </div>
+                <div style="margin-left:auto; text-align:right;">
+                    <p style="font-size:0.8rem; color:var(--muted);">Current Wallet Balance</p>
+                    <p style="font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:800; color:var(--primary);">
+                        GHS {{ found_user.wallet_balance|floatformat:2 }}
+                    </p>
+                </div>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" value="{{ found_user.pk }}">
+
+                <div class="form-group">
+                    <label>Amount to Load (GHS)</label>
+                    <input type="number" name="amount" step="0.01" min="0.01"
+                           class="form-control" placeholder="Enter amount" required
+                           id="topupAmount" oninput="checkOverpay(this.value)">
+                    <p id="overpayWarning" style="display:none; color:var(--warning); font-size:0.82rem; margin-top:6px;">
+                        <i class="fa fa-triangle-exclamation"></i> Amount seems unusually high. Double-check before submitting.
+                    </p>
+                </div>
+                <script>
+                function checkOverpay(val) {
+                    const warn = document.getElementById('overpayWarning');
+                    warn.style.display = parseFloat(val) > 5000 ? 'block' : 'none';
+                }
+                </script>
+                <div class="form-group">
+                    <label>Note (optional)</label>
+                    <input type="text" name="note" class="form-control"
+                           placeholder="e.g. Mobile money received">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">
+                    <i class="fa fa-wallet"></i> Load Wallet
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        {% if topup_history %}
+        <div class="card" style="margin-top:24px;">
+            <p class="section-title">Recent Top-up History</p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Agent</th>
+                            <th>Amount</th>
+                            <th>Note</th>
+                            <th>By</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in topup_history %}
+                        <tr>
+                            <td>{{ t.created_at|date:"d M Y, H:i" }}</td>
+                            <td>{{ t.user.full_name }}</td>
+                            <td style="color:var(--primary); font-weight:700;">
+                                GHS {{ t.amount|floatformat:2 }}
+                                {% if t.corrections.exists %}
+                                    <span style="display:inline-block; margin-left:6px; font-size:0.68rem;
+                                          background:rgba(255,165,0,0.15); color:orange;
+                                          border-radius:4px; padding:1px 6px; font-weight:600; vertical-align:middle;">
+                                        CORRECTED
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="color:var(--muted);">{{ t.note|default:"-" }}</td>
+                            <td>{{ t.added_by.full_name|default:"Admin" }}</td>
+                            <td style="text-align:right;">
+                                {% if t.corrections.exists %}
+                                    {% with c=t.corrections.first %}
+                                    <span style="font-size:0.72rem; color:var(--muted);">
+                                        {{ c.wrong_amount|floatformat:2 }} → {{ c.correct_amount|floatformat:2 }}
+                                    </span>
+                                    {% endwith %}
+                                {% else %}
+                                    <span class="correct-btn-wrap" data-created="{{ t.created_at.isoformat }}">
+                                        <a href="/admin-panel/wallet-topup/correct/{{ t.pk }}/"
+                                           style="font-size:0.75rem; padding:4px 10px;
+                                                  background:rgba(255,165,0,0.12); color:orange;
+                                                  border:1px solid rgba(255,165,0,0.3); border-radius:6px;
+                                                  text-decoration:none; display:inline-flex; align-items:center; gap:5px;
+                                                  white-space:nowrap;">
+                                            <i class="fa fa-rotate-left"></i> Correct
+                                        </a>
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <script>
+        // Hide the Correct button if the top-up is older than 24 hours
+        document.querySelectorAll('.correct-btn-wrap').forEach(function(wrap) {
+            const created = new Date(wrap.dataset.created);
+            const age = Date.now() - created.getTime();
+            if (age > 86400000) {
+                wrap.innerHTML = '<span style="font-size:0.72rem; color:var(--muted);">Expired</span>';
+            }
+        });
+        </script>
+        {% endif %}
+
+    </main>
+</div>
+{% endblock %}

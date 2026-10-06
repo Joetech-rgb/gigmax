@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Request Submitted — SK Plug{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+    <div class="auth-card" style="text-align:center;">
+        <div style="font-size:3rem; margin-bottom:16px;">✅</div>
+        <h1 class="auth-title">Request Submitted!</h1>
+        <p style="color:var(--muted); margin: 12px 0 28px;">
+            You have successfully requested to be an Agent.
+        </p>
+
+        <div class="card" style="margin-bottom:20px; text-align:left;">
+            <p style="font-weight:600; margin-bottom:8px;">⏳ Wait for Approval</p>
+            <p style="color:var(--muted); font-size:0.9rem;">
+                Contact Admin to be approved. You will gain portal access once approved.
+            </p>
+        </div>
+
+        <a href="https://wa.me/{{ admin_whatsapp }}"
+           target="_blank"
+           class="btn btn-primary btn-full"
+           style="margin-bottom:12px;">
+            <i class="fab fa-whatsapp"></i> Contact Admin on WhatsApp
+        </a>
+
+        <a href="{{ community_link }}"
+           target="_blank"
+           class="btn btn-outline btn-full">
+            <i class="fab fa-whatsapp"></i> Join Our Community
+        </a>
+    </div>
+</div>
+<style>
+.auth-wrap { min-height: calc(100vh - 56px); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.auth-card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; }
+.auth-title { font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; }
+</style>
+{% endblock %}

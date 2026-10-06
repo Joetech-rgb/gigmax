@@ -1,0 +1,173 @@
+﻿{% extends "base.html" %}
+{% block title %}Fee Settings - Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+        <h1 class="page-title">Fee & Commission Settings</h1>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="grid-2" style="gap:24px; align-items:start;">
+
+            <!-- LEFT: Form -->
+            <div class="card">
+                <p class="section-title"><i class="fa fa-sliders"></i> Configure Fees</p>
+                <form method="POST">
+                    {% csrf_token %}
+
+                    <div class="form-group">
+                        <label>Paystack Service Fee (%)</label>
+                        <div style="position:relative;">
+                            <input type="number" name="paystack_fee" step="0.1"
+                                   value="{{ config.paystack_fee_percent }}"
+                                   class="form-control" style="padding-right:40px;">
+                            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:0.85rem;">%</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Admin Share (%)</label>
+                        <div style="position:relative;">
+                            <input type="number" name="admin_share" step="1"
+                                   value="{{ config.admin_share_percent }}"
+                                   class="form-control" style="padding-right:40px;">
+                            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:0.85rem;">%</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Agent Share (%)</label>
+                        <div style="position:relative;">
+                            <input type="number" name="agent_share" step="1"
+                                   value="{{ config.agent_share_percent }}"
+                                   class="form-control" style="padding-right:40px;">
+                            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:0.85rem;">%</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Operational Cost (%)</label>
+                        <div style="position:relative;">
+                            <input type="number" name="operational_cost" step="0.1"
+                                   value="{{ config.operational_cost_percent }}"
+                                   class="form-control" style="padding-right:40px;">
+                            <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:0.85rem;">%</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full" style="margin-top:8px;">
+                        <i class="fa fa-save"></i> Save Settings
+                    </button>
+                </form>
+            </div>
+
+            <!-- RIGHT: Breakdown -->
+            <div style="display:flex; flex-direction:column; gap:16px;">
+
+                <div class="card">
+                    <p class="section-title"><i class="fa fa-calculator"></i> Example Breakdown on GHS 100</p>
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+
+                        <div class="fee-row">
+                            <div class="fee-row-left">
+                                <span class="fee-icon" style="background:rgba(255,68,68,0.1); color:var(--danger);">
+                                    <i class="fa fa-credit-card"></i>
+                                </span>
+                                <span>Paystack Fee</span>
+                            </div>
+                            <span class="fee-value" style="color:var(--danger);">- GHS {{ example.paystack_fee }}</span>
+                        </div>
+
+                        <div class="fee-row">
+                            <div class="fee-row-left">
+                                <span class="fee-icon" style="background:rgba(0,200,83,0.1); color:var(--primary);">
+                                    <i class="fa fa-user-shield"></i>
+                                </span>
+                                <span>Admin Earns</span>
+                            </div>
+                            <span class="fee-value" style="color:var(--primary);">GHS {{ example.admin_earns }}</span>
+                        </div>
+
+                        <div class="fee-row">
+                            <div class="fee-row-left">
+                                <span class="fee-icon" style="background:rgba(41,121,255,0.1); color:#2979ff;">
+                                    <i class="fa fa-user-tie"></i>
+                                </span>
+                                <span>Agent Earns</span>
+                            </div>
+                            <span class="fee-value" style="color:#2979ff;">GHS {{ example.agent_earns }}</span>
+                        </div>
+
+                        <div class="fee-row">
+                            <div class="fee-row-left">
+                                <span class="fee-icon" style="background:rgba(255,179,0,0.1); color:var(--warning);">
+                                    <i class="fa fa-wrench"></i>
+                                </span>
+                                <span>Operational Cost</span>
+                            </div>
+                            <span class="fee-value" style="color:var(--warning);">- GHS {{ example.operational_cost }}</span>
+                        </div>
+
+                        <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:4px;">
+                            <div class="fee-row">
+                                <div class="fee-row-left">
+                                    <span class="fee-icon" style="background:rgba(0,200,83,0.15); color:var(--primary);">
+                                        <i class="fa fa-chart-line"></i>
+                                    </span>
+                                    <strong>Net Profit</strong>
+                                </div>
+                                <strong style="color:var(--primary); font-size:1.1rem;">GHS {{ example.net_profit }}</strong>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Info note -->
+                <div class="promo-banner" style="background:rgba(41,121,255,0.08); border-color:rgba(41,121,255,0.2);">
+                    <span class="promo-icon" style="color:#2979ff;"><i class="fa fa-circle-info"></i></span>
+                    <span style="font-size:0.85rem; color:var(--muted);">
+                        Changes take effect immediately on all new transactions. Existing orders are not affected.
+                    </span>
+                </div>
+
+            </div>
+        </div>
+    </main>
+</div>
+
+<style>
+.fee-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border-radius: 10px;
+}
+.fee-row-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+}
+.fee-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+.fee-value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+</style>
+{% endblock %}

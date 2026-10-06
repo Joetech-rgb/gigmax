@@ -1,0 +1,50 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+*.egg-info/
+
+# Django
+db.sqlite3
+staticfiles/
+media/
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Debug/fix scripts
+fix*.py
+check*.py
+mega_fix*.py
+dump_*.txt
+d_*.txt
+verify*.py
+apply_fixes.py
+audit.py
+gati_check.py
+test_*.py
+tests_skplug.py
+debug_rendered.html
+forms.py.bak
+*.bak
+*.bak_*
+find_double_deliveries.py
+failed_to_waiting_*.txt
+hell
+
+# Backup files — kept on disk for safety, not tracked in git
+*.bak
+*.bak[0-9]
+*.dead_backup
+.env.save
+.env.bak_*
+wallet_backup_*.sql

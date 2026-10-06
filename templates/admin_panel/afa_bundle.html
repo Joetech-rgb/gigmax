@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% block title %}AFA Bundle - Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
+            <!-- FIX: Updated page title -->
+            <h1 class="page-title" style="margin-bottom:0;">AFA Bundle - Admin</h1>
+            <span class="badge badge-info" style="font-size:0.85rem; padding:6px 14px;">
+                {{ applications|length }} Total
+            </span>
+        </div>
+
+        <!-- AFA Pricing -->
+        <div class="card" style="margin-bottom:20px;">
+            <p class="section-title"><i class="fa fa-tag"></i> AFA Bundle Pricing</p>
+            <form method="post" action="/admin-panel/afa/">
+                {% csrf_token %}
+                <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end;">
+                    <div class="form-group" style="margin:0; flex:1; min-width:200px;">
+                        <label>Customer & Base Agent Price (GHS)</label>
+                        <input type="number" name="price_customer_base" step="0.01" min="0"
+                               class="form-control" value="{{ prices.customer_base|default:'' }}"
+                               placeholder="e.g. 50.00">
+                    </div>
+                    <div class="form-group" style="margin:0; flex:1; min-width:200px;">
+                        <label>All Agent Base Price (GHS)</label>
+                        <input type="number" name="price_agent_base" step="0.01" min="0"
+                               class="form-control" value="{{ prices.agent_base|default:'' }}"
+                               placeholder="e.g. 45.00">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="flex-shrink:0;">
+                        <i class="fa fa-save"></i> Save Prices
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Search + Filter -->
+        <form method="get" class="card" style="margin-bottom:20px; padding:16px 20px;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                <input type="text" name="search" value="{{ request.GET.search }}"
+                       class="form-control" placeholder="Search by name or phone..."
+                       style="flex:1; min-width:180px;">
+                <select name="status" class="form-control" style="width:160px; flex-shrink:0;">
+                    <option value="">All Statuses</option>
+                    <option value="pending"    {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="processing" {% if request.GET.status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="delivered"  {% if request.GET.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                </select>
+                <button type="submit" class="btn btn-primary" style="flex-shrink:0;">
+                    <i class="fa fa-search"></i> Filter
+                </button>
+            </div>
+        </form>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="card" style="padding:0; overflow:hidden;">
+            <div class="table-wrap">
+                <table style="min-width:860px; width:100%;">
+                    <thead>
+                        <tr>
+                            <th style="width:180px;">Full Name</th>
+                            <th style="width:120px;">Phone</th>
+                            <th style="width:160px;">Ghana Card (GHA-########-#)</th>
+                            <th style="width:110px;">DOB (DD/MM/YYYY)</th>
+                            <th style="width:120px;">Location</th>
+                            <th style="width:100px;">Region</th>
+                            <th style="width:100px;">Status</th>
+                            <th style="width:100px;">Date</th>
+                            <th style="width:160px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in applications %}
+                        <tr id="afa-row-{{ app.pk }}">
+                            <td><strong>{{ app.full_name }}</strong></td>
+                            <td style="font-size:0.85rem;">{{ app.phone_number }}</td>
+                            <td>
+                                <code style="font-size:0.78rem; background:var(--surface2); padding:3px 6px; border-radius:4px; letter-spacing:0.04em;">
+                                    {{ app.ghana_card }}
+                                </code>
+                            </td>
+                            <td style="font-size:0.85rem; white-space:nowrap;">
+                                {{ app.date_of_birth|date:"d/m/Y" }}
+                            </td>
+                            <td style="font-size:0.85rem;">{{ app.location }}</td>
+                            <td style="font-size:0.85rem;">{{ app.region }}</td>
+                            <td>
+                                <span id="status-badge-{{ app.pk }}" class="badge
+                                    {% if app.status == 'pending' %}badge-warning
+                                    {% elif app.status == 'processing' %}badge-info
+                                    {% else %}badge-success{% endif %}">
+                                    {{ app.get_status_display }}
+                                </span>
+                            </td>
+                            <td style="font-size:0.8rem; color:var(--muted); white-space:nowrap;">
+                                {{ app.created_at|date:"d/m/Y" }}
+                            </td>
+                            <td>
+                                <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;" id="actions-{{ app.pk }}">
+
+                                    {% if app.status == 'delivered' %}
+                                        <!-- Already delivered — show ✅ only -->
+                                        <span style="font-size:1.2rem; font-weight:700;">✅</span>
+
+                                    {% elif app.status == 'processing' %}
+                                        <!-- Already copied/processing — show ✅ for copy, and Delivered button -->
+                                        <span style="font-size:1.2rem; font-weight:700;">✅</span>
+                                        <form method="post" action="/afa/deliver/{{ app.pk }}/" style="width:100%; margin:0;" id="deliver-form-{{ app.pk }}">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                    class="btn btn-sm"
+                                                    style="width:100%; background:rgba(0,200,83,0.15); color:var(--primary); border:1px solid rgba(0,200,83,0.3);"
+                                                    onclick="return confirm('Mark {{ app.full_name|escapejs }} as Delivered?')">
+                                                <i class="fa fa-check"></i> Delivered
+                                            </button>
+                                        </form>
+
+                                    {% else %}
+                                        <!-- Pending — show Copy and Delivered buttons -->
+
+                                        <!-- Copy button -->
+                                        <button
+                                            onclick="copyAndProcess({{ app.pk }}, '{{ app.full_name|escapejs }}', '{{ app.phone_number|escapejs }}', '{{ app.ghana_card|escapejs }}', '{{ app.date_of_birth|date:"d/m/Y" }}', '{{ app.location|escapejs }}', '{{ app.region|escapejs }}')"
+                                            class="btn btn-outline btn-sm"
+                                            id="copy-btn-{{ app.pk }}"
+                                            style="width:100%;">
+                                            <i class="fa fa-copy"></i> Copy
+                                        </button>
+
+                                        <!-- Delivered button -->
+                                        <form method="post" action="/afa/deliver/{{ app.pk }}/" style="width:100%; margin:0;" id="deliver-form-{{ app.pk }}">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                    class="btn btn-sm"
+                                                    style="width:100%; background:rgba(0,200,83,0.15); color:var(--primary); border:1px solid rgba(0,200,83,0.3);"
+                                                    onclick="return confirm('Mark {{ app.full_name|escapejs }} as Delivered?')">
+                                                <i class="fa fa-check"></i> Delivered
+                                            </button>
+                                        </form>
+                                    {% endif %}
+
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" style="text-align:center; color:var(--muted); padding:48px;">
+                                <i class="fa fa-id-card" style="font-size:2rem; display:block; margin-bottom:12px; opacity:0.3;"></i>
+                                No applications found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+
+// Ghana Card validator — enforces GHA-########-# (8 digits, then 1 digit)
+function isValidGhanaCard(value) {
+    return /^GHA-\d{8}-\d$/.test(value.trim());
+}
+
+// Copy sets pending → processing, replaces Copy button with ✅
+function copyAndProcess(pk, name, phone, card, dob, location, region) {
+
+    if (!isValidGhanaCard(card)) {
+        showToast(`Warning: Ghana Card "${card}" does not match GHA-########-# format`, true);
+    }
+
+    const text = `Name: ${name}\nPhone: ${phone}\nGhana Card: ${card}\nDOB: ${dob}\nLocation: ${location}\nRegion: ${region}`;
+    navigator.clipboard.writeText(text).catch(() => {});
+
+    fetch(`/afa/copy/${pk}/`, {
+        method: "POST",
+        headers: { "X-CSRFToken": CSRF, "Content-Type": "application/json" }
+    })
+    .then(r => r.json())
+    .then(() => {
+        // Update badge to Processing
+        const badge = document.getElementById(`status-badge-${pk}`);
+        if (badge) {
+            badge.className = "badge badge-info";
+            badge.textContent = "Processing";
+        }
+
+        // FIX: Replace Copy button with ✅
+        const copyBtn = document.getElementById(`copy-btn-${pk}`);
+        if (copyBtn) {
+            const tick = document.createElement('span');
+            tick.style.cssText = 'font-size:1.2rem; font-weight:700;';
+            tick.textContent = '✅';
+            copyBtn.replaceWith(tick);
+        }
+
+        showToast("Copied & moved to Processing");
+    })
+    .catch(() => showToast("Copied (status update failed)", true));
+}
+
+// Intercept Delivered form submit — update UI instantly via fetch
+document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (!form.id || !form.id.startsWith('deliver-form-')) return;
+
+    const pk = form.id.replace('deliver-form-', '');
+    e.preventDefault();
+
+    fetch(form.action, {
+        method: "POST",
+        headers: { "X-CSRFToken": CSRF, "Content-Type": "application/json" }
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Server error');
+
+        // Update badge to Delivered
+        const badge = document.getElementById(`status-badge-${pk}`);
+        if (badge) {
+            badge.className = "badge badge-success";
+            badge.textContent = "Delivered";
+        }
+
+        // FIX: Replace entire actions div with ✅ only
+        const actionsDiv = document.getElementById(`actions-${pk}`);
+        if (actionsDiv) {
+            actionsDiv.innerHTML = `<span style="font-size:1.2rem; font-weight:700;">✅</span>`;
+        }
+
+        showToast("Marked as Delivered");
+    })
+    .catch(() => {
+        // Fallback: let the normal form POST happen
+        form.submit();
+    });
+});
+
+function showToast(msg, isError = false) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = `
+        position:fixed; bottom:24px; right:24px; z-index:9999;
+        background:${isError ? '#e53935' : '#00c853'}; color:${isError ? '#fff' : '#000'};
+        padding:12px 20px; border-radius:8px; font-size:0.9rem; font-weight:600;
+        box-shadow:0 4px 16px rgba(0,0,0,0.3); opacity:1; transition:opacity .4s;
+    `;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2500);
+}
+</script>
+{% endblock %}

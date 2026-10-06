@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+{% block title %}Excel Upload — SK Plug{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0; max-width:860px;">
+        <h1 class="page-title"><i class="fa fa-file-excel"></i> Buy Data — Excel Upload</h1>
+
+        {% if not mtn_enabled %}
+        <div style="background:rgba(255,109,0,0.1); border:1px solid rgba(255,109,0,0.4);
+                    border-radius:10px; padding:12px 16px; margin-bottom:20px;
+                    display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.2rem;">⚠️</span>
+            <span style="font-size:0.88rem; color:#FF6D00; font-weight:600;">
+                MTN orders are temporarily unavailable. Please use Telecel or AT.
+            </span>
+        </div>
+        {% endif %}
+
+        {# ── MTN Toast ── #}
+        <div id="mtn-toast"
+             style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+                    background:#FF6D00; color:#fff; padding:12px 24px; border-radius:12px;
+                    font-weight:700; font-size:0.9rem; z-index:9999;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.3); transition:opacity 0.3s;">
+            ⚠️ MTN orders are temporarily unavailable
+        </div>
+
+        <!-- ── Upload + Validate Form ── -->
+        <form method="post" action="/agent/buy/excel/upload/" enctype="multipart/form-data" id="uploadForm">
+            {% csrf_token %}
+
+            <div class="card" style="margin-bottom:20px;">
+                <p class="section-title">Select Network</p>
+                <select name="network" class="form-control" required style="max-width:300px;"
+                        id="networkSelect">
+                    <option value="">— Choose Network —</option>
+                    {% for net in networks %}
+                    <option value="{{ net }}" {% if network == net %}selected{% endif %}>{{ net }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="card" style="margin-bottom:20px;">
+                <p class="section-title">Upload Excel File</p>
+                <p style="color:var(--muted); font-size:0.85rem; margin-bottom:4px;">
+                    <strong>Column A</strong> = Phone Number &nbsp;|&nbsp; <strong>Column B</strong> = GB Size. Row 1 is header (skipped).
+                </p>
+                <p style="color:#FF9800; font-size:0.82rem; margin-bottom:16px;">
+                    <i class="fa fa-triangle-exclamation"></i>
+                    <strong>Important:</strong> Format Column A as <em>Text</em> in Excel to preserve leading zeros (e.g. 0244111222).
+                </p>
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                    <i class="fa fa-file-excel" style="font-size:2rem; color:var(--primary); margin-bottom:12px; display:block;"></i>
+                    <p style="margin:0;">Drag &amp; drop Excel file or click to browse</p>
+                    <input type="file" name="excel_file" accept=".xlsx,.xls" id="fileInput" style="display:none;"
+                           {% if not validated %}required{% endif %}>
+                    <p id="fileName" style="margin-top:8px; font-size:0.85rem; color:var(--primary);"></p>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" style="margin-top:16px;" id="validateBtn">
+                    <i class="fa fa-magnifying-glass"></i> Upload &amp; Validate
+                </button>
+            </div>
+        </form>
+
+        {% if validated %}
+
+        <!-- ── Summary Stats ── -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px;">
+            <div class="stat-card">
+                <div class="stat-label">Valid Orders</div>
+                <div class="stat-value" style="color:var(--primary);">{{ valid|length }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Invalid Rows</div>
+                <div class="stat-value" style="color:{% if invalid %}#f44336{% else %}var(--muted){% endif %};">{{ invalid|length }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total GB</div>
+                <div class="stat-value">{{ total_gb }}GB</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Amount</div>
+                <div class="stat-value" style="color:var(--primary);">GHS {{ total_amount|floatformat:2 }}</div>
+            </div>
+        </div>
+
+        {% if valid %}
+
+        <!-- ── Payment breakdown + Place Order ── -->
+        <div class="card" style="margin-bottom:20px; border-color:var(--primary);">
+            <p class="section-title" style="color:var(--primary);"><i class="fa fa-paper-plane"></i> Place Order</p>
+
+            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px; padding:12px; background:var(--surface2); border-radius:10px;">
+                {% if wallet_used > 0 %}
+                <div style="display:flex; justify-content:space-between; font-size:0.88rem;">
+                    <span style="color:var(--muted); display:flex; align-items:center; gap:8px;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:var(--primary);display:inline-block;"></span> Wallet
+                    </span>
+                    <strong style="color:var(--primary);">GHS {{ wallet_used|floatformat:2 }}</strong>
+                </div>
+                {% endif %}
+                {% if debt_needed > 0 %}
+                <div style="display:flex; justify-content:space-between; font-size:0.88rem;">
+                    <span style="color:var(--muted); display:flex; align-items:center; gap:8px;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:#FF6D00;display:inline-block;"></span> Debt
+                    </span>
+                    <strong style="color:#FF6D00;">GHS {{ debt_needed|floatformat:2 }}</strong>
+                </div>
+                {% endif %}
+                {% if paystack_needed > 0 %}
+                <div style="display:flex; justify-content:space-between; font-size:0.88rem;">
+                    <span style="color:var(--muted); display:flex; align-items:center; gap:8px;">
+                        <span style="width:10px;height:10px;border-radius:50%;background:#2196F3;display:inline-block;"></span> Paystack
+                    </span>
+                    <strong style="color:#2196F3;">GHS {{ paystack_needed|floatformat:2 }}</strong>
+                </div>
+                {% endif %}
+                <div style="border-top:1px solid var(--border); padding-top:8px; display:flex; justify-content:space-between; font-size:0.9rem; font-weight:700;">
+                    <span>Total</span>
+                    <span style="color:var(--primary);">GHS {{ total_amount|floatformat:2 }}</span>
+                </div>
+            </div>
+
+            <form method="post" action="/agent/buy/excel/submit/">
+                {% csrf_token %}
+                <input type="hidden" name="network" value="{{ network }}">
+                {% for row in valid %}
+                <input type="hidden" name="recipients"  value="{{ row.number }}">
+                <input type="hidden" name="package_ids" value="{{ row.package_id }}">
+                <input type="hidden" name="prices"      value="{{ row.price }}">
+                {% endfor %}
+                <button type="submit" class="btn btn-primary btn-full">
+                    <i class="fa fa-paper-plane"></i>
+                    Place {{ valid|length }} Order{{ valid|length|pluralize }} — GHS {{ total_amount|floatformat:2 }}
+                </button>
+            </form>
+            <p style="color:var(--muted); font-size:0.8rem; margin-top:8px; text-align:center;">
+                Wallet balance: <strong style="color:var(--primary);">GHS {{ wallet|floatformat:2 }}</strong>
+            </p>
+        </div>
+
+        <!-- ── Valid Orders Table ── -->
+        <div class="card" style="margin-bottom:20px;">
+            <p class="section-title" style="color:var(--primary);">
+                <i class="fa fa-circle-check"></i> Valid Orders ({{ valid|length }})
+            </p>
+            <div class="table-wrap">
+                <table style="min-width:500px; width:100%;">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Phone Number</th>
+                            <th>GB</th>
+                            <th>Amount</th>
+                            <th>Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in valid %}
+                        <tr>
+                            <td style="color:var(--muted);">{{ forloop.counter }}</td>
+                            <td><code style="font-size:0.88rem;">{{ row.number }}</code></td>
+                            <td><strong>{{ row.gb }}GB</strong></td>
+                            <td style="color:var(--primary); font-weight:600;">GHS {{ row.price|floatformat:2 }}</td>
+                            <td>
+                                {% if row.is_duplicate %}
+                                <span class="badge badge-warning" style="font-size:0.72rem;">
+                                    <i class="fa fa-triangle-exclamation"></i> Duplicate number, diff GB
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ── Invalid Rows ── -->
+        {% if invalid %}
+        <div class="card">
+            <p class="section-title" style="color:#f44336;">
+                <i class="fa fa-circle-xmark"></i> Invalid Rows ({{ invalid|length }})
+            </p>
+            <div class="table-wrap">
+                <table style="min-width:400px; width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Row</th>
+                            <th>Entry</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in invalid %}
+                        <tr>
+                            <td style="color:var(--muted); font-size:0.82rem;">{{ row.line|slice:":6" }}</td>
+                            <td><code style="font-size:0.82rem;">{{ row.line }}</code></td>
+                            <td style="color:#f44336; font-size:0.83rem;">{{ row.error }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {% endif %}{# end validated #}
+
+    </main>
+</div>
+
+<style>
+.upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 40px; text-align: center; transition: border-color 0.2s; cursor: pointer;
+}
+.upload-zone:hover { border-color: var(--primary); }
+.btn-full { width: 100%; }
+</style>
+
+<script>
+const MTN_ENABLED = {{ mtn_enabled|yesno:"true,false" }};
+
+function showMtnToast() {
+    const t = document.getElementById('mtn-toast');
+    t.style.display = 'block';
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => {
+        t.style.opacity = '0';
+        setTimeout(() => { t.style.display = 'none'; }, 300);
+    }, 3000);
+}
+
+document.getElementById('networkSelect').addEventListener('change', function () {
+    if (this.value === 'MTN' && !MTN_ENABLED) {
+        this.value = '';
+        showMtnToast();
+        return;
+    }
+});
+
+document.getElementById('fileInput').addEventListener('change', function () {
+    document.getElementById('fileName').textContent = this.files[0]?.name || '';
+    this.removeAttribute('required');
+});
+
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--primary)'; });
+zone.addEventListener('dragleave', () => { zone.style.borderColor = 'var(--border)'; });
+zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.style.borderColor = 'var(--border)';
+    const file = e.dataTransfer.files[0];
+    if (file) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        document.getElementById('fileInput').files = dt.files;
+        document.getElementById('fileName').textContent = file.name;
+    }
+});
+
+document.getElementById('uploadForm').addEventListener('submit', function (e) {
+    const net = document.getElementById('networkSelect').value;
+    if (net === 'MTN' && !MTN_ENABLED) {
+        e.preventDefault();
+        showMtnToast();
+        return;
+    }
+    const btn = document.getElementById('validateBtn');
+    btn.textContent = 'Validating…';
+    btn.disabled = true;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Generate Prices & Links - Agent{% endblock %}
+
+{% block body %}
+<div style="display: flex;">
+    {% include 'partials/sidebar.html' %}
+    <main style="flex: 1; padding: 32px 24px;">
+        <h1>Generate Prices / Link</h1>
+        <div class="card">
+            <div class="card-header"><h3>Your Custom Links</h3></div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr><th>Link URL</th><th>Your Price</th><th>Base Price</th><th>Profit</th><th>Total Orders</th><th>Revenue</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for link in links %}
+                        <tr>
+                            <td><code>{{ link.url }}</code></td>
+                            <td>GHS {{ link.your_price }}</td>
+                            <td>GHS {{ link.base_price }}</td>
+                            <td>GHS {{ link.profit }}</td>
+                            <td>{{ link.total_orders }}</td>
+                            <td>GHS {{ link.total_revenue }}</td>
+                            <td><span class="badge {% if link.is_active %}badge-success{% else %}badge-danger{% endif %}">{% if link.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7">No links created yet.{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

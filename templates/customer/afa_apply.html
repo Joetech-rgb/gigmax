@@ -1,0 +1,269 @@
+﻿{% extends "base.html" %}
+{% block body %}
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .afa-wrapper {
+    min-height: 100vh;
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 16px;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  .afa-card {
+    background: #111;
+    border: 1px solid #1a7a1a;
+    border-radius: 16px;
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 0 40px rgba(0,200,0,0.08);
+  }
+
+  .afa-logo {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .afa-logo h2 {
+    color: #00cc44;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .afa-logo p {
+    color: #555;
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .price-badge {
+    background: linear-gradient(135deg, #0f3d0f, #1a6e1a);
+    border: 1px solid #00cc44;
+    border-radius: 10px;
+    padding: 12px 20px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .price-badge span {
+    color: #aaa;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .price-badge strong {
+    color: #00ff55;
+    font-size: 28px;
+    font-weight: 800;
+  }
+
+  .alert {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+
+  .alert-error {
+    background: #2a0a0a;
+    border: 1px solid #cc0000;
+    color: #ff6666;
+  }
+
+  .alert-success {
+    background: #0a2a0a;
+    border: 1px solid #00aa33;
+    color: #00ff55;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    color: #aaa;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .form-group input,
+  .form-group select {
+    width: 100%;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus {
+    border-color: #00cc44;
+    box-shadow: 0 0 0 3px rgba(0,204,68,0.1);
+  }
+
+  .form-group select option {
+    background: #1a1a1a;
+    color: #fff;
+  }
+
+  /* date picker visible on dark background */
+  .form-group input[type="date"] {
+    color-scheme: dark;
+  }
+
+  .btn-wallet {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #00aa33, #00cc44);
+    color: #000;
+    font-weight: 800;
+    font-size: 15px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .btn-wallet:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-wallet:active { transform: translateY(0); }
+
+  .btn-paystack {
+    width: 100%;
+    padding: 15px;
+    background: #1a1a1a;
+    color: #00cc44;
+    font-weight: 700;
+    font-size: 15px;
+    border: 1px solid #00cc44;
+    border-radius: 10px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  .btn-paystack:hover { background: #0f2a0f; transform: translateY(-1px); }
+
+  .divider {
+    text-align: center;
+    color: #333;
+    font-size: 12px;
+    margin: 8px 0;
+  }
+</style>
+
+<div class="afa-wrapper">
+  <div class="afa-card">
+    <div class="afa-logo">
+      <h2>🛡️ AFA APPLICATION</h2>
+      <p>Ghana — Official Registration</p>
+    </div>
+
+    <div class="price-badge">
+      <span>Application Fee</span>
+      <strong>GHS {{ afa_price }}</strong>
+    </div>
+
+    {% if messages %}
+      {% for m in messages %}
+        <div class="alert {% if 'Insufficient' in m.message or 'Error' in m.message or 'fill' in m.message %}alert-error{% else %}alert-success{% endif %}">
+          {{ m }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="POST">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" name="full_name"
+          placeholder="e.g. Kwame Mensah"
+          value="{{ form.full_name.value|default:'' }}"
+          pattern="[A-Za-z\s]+"
+          title="Name must contain letters only"
+          oninput="this.value=this.value.replace(/[^A-Za-z\s]/g,'')"
+          required>
+      </div>
+
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input type="tel" name="phone_number"
+          placeholder="e.g. 0244000000"
+          value="{{ form.phone_number.value|default:'' }}"
+          maxlength="10"
+          pattern="[0-9]{10}"
+          title="Phone must be exactly 10 digits"
+          oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)"
+          required>
+      </div>
+
+      <div class="form-group">
+        <label>Ghana Card Number</label>
+        <input type="text" name="ghana_card"
+          placeholder="e.g. GHA-000000000-0"
+          value="{{ form.ghana_card.value|default:'' }}"
+          required>
+      </div>
+
+      <div class="form-group">
+        <label>Date of Birth</label>
+        <input type="date" name="date_of_birth"
+          value="{{ form.date_of_birth.value|default:'' }}"
+          max="{{ today }}"
+          required>
+      </div>
+
+      <div class="form-group">
+        <label>Location / Town</label>
+        <input type="text" name="location"
+          placeholder="e.g. Kumasi, Oforikrom"
+          value="{{ form.location.value|default:'' }}"
+          pattern="[A-Za-z\s,.]+"
+          title="Location must contain letters only"
+          oninput="this.value=this.value.replace(/[^A-Za-z\s,.]/g,'')"
+          required>
+      </div>
+
+      <div class="form-group">
+        <label>Region</label>
+        <select name="region" required>
+          <option value="">-- Select Region --</option>
+          {% for value, label in form.region.field.choices %}
+            {% if value %}
+              <option value="{{ value }}" {% if form.region.value == value %}selected{% endif %}>{{ label }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="margin-top: 24px;">
+  {% if user.is_authenticated %}
+    <button type="submit" name="payment_method" value="wallet" class="btn-wallet">
+      💰 PAY WITH WALLET — GHS {{ afa_price }}
+    </button>
+    <div class="divider">or</div>
+    {% endif %}
+    <button type="submit" name="payment_method" value="paystack" class="btn-paystack">
+    📱 PAY WITH MOMO / VISA
+    </button>
+    </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

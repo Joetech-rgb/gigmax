@@ -1,0 +1,147 @@
+﻿{% extends 'base.html' %}
+{% block title %}Admin Earnings – SK Plug{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:28px;">
+            <h1 class="page-title" style="margin:0;">Admin Earnings</h1>
+        </div>
+
+        {% if messages %}
+        {% for msg in messages %}
+        <div style="padding:12px 16px; border-radius:10px; margin-bottom:16px; font-size:0.9rem; font-weight:600;
+                    background:{% if msg.tags == 'error' %}rgba(244,67,54,0.12){% else %}rgba(0,200,83,0.12){% endif %};
+                    border:1px solid {% if msg.tags == 'error' %}rgba(244,67,54,0.3){% else %}rgba(0,200,83,0.3){% endif %};
+                    color:{% if msg.tags == 'error' %}#f44336{% else %}#00c853{% endif %};">
+            {{ msg }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {# ── Summary Cards ── #}
+        <div class="grid-4" style="margin-bottom:28px;">
+            <div class="stat-card" style="border-color:rgba(0,200,83,0.3);">
+                <div class="stat-label">Total Margin Earned</div>
+                <div class="stat-value" style="color:var(--primary);">GHS {{ total_margin|floatformat:2 }}</div>
+                <div class="stat-sub">Price paid − base cost, all time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Service Charges</div>
+                <div class="stat-value">GHS {{ total_service_charges|floatformat:2 }}</div>
+                <div class="stat-sub">GHS 1.00 per completed withdrawal</div>
+            </div>
+            <div class="stat-card" style="border-color:rgba(244,67,54,0.2);">
+                <div class="stat-label">Total Withdrawn</div>
+                <div class="stat-value" style="color:#f44336;">GHS {{ total_withdrawn|floatformat:2 }}</div>
+                <div class="stat-sub">Completed admin withdrawals</div>
+            </div>
+            <div class="stat-card" style="border-color:rgba(0,200,83,0.5);">
+                <div class="stat-label">Available Balance</div>
+                <div class="stat-value" style="font-size:1.6rem; color:{% if available >= 0 %}var(--primary){% else %}#f44336{% endif %};">
+                    GHS {{ available|floatformat:2 }}
+                </div>
+                <div class="stat-sub">Margin + charges − withdrawn</div>
+            </div>
+        </div>
+
+        {# ── Withdraw Form ── #}
+        <div class="card" style="margin-bottom:28px; border-color:rgba(0,200,83,0.2);">
+            <p class="section-title" style="margin-bottom:4px;">Withdraw Earnings</p>
+            <p style="font-size:0.8rem; color:var(--muted); margin-bottom:20px;">
+                Sends directly via Paystack MoMo transfer. Available: <strong style="color:var(--primary);">GHS {{ available|floatformat:2 }}</strong>
+            </p>
+
+            <form method="post" action="/admin-panel/earnings/">
+                {% csrf_token %}
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:12px; align-items:end; flex-wrap:wrap;">
+                    <div>
+                        <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:6px;">Amount (GHS)</label>
+                        <input type="number" name="amount" step="0.01" min="1" max="{{ available }}"
+                               placeholder="0.00" required
+                               style="width:100%; padding:10px 14px; border-radius:8px;
+                                      border:1px solid var(--border, #444);
+                                      background:var(--surface2, #2a2a3e); color:inherit;
+                                      font-size:0.95rem; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:6px;">Phone Number</label>
+                        <input type="text" name="phone_number" placeholder="024XXXXXXX" required
+                               style="width:100%; padding:10px 14px; border-radius:8px;
+                                      border:1px solid var(--border, #444);
+                                      background:var(--surface2, #2a2a3e); color:inherit;
+                                      font-size:0.95rem; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:6px;">Network</label>
+                        <select name="network" required
+                                style="width:100%; padding:10px 14px; border-radius:8px;
+                                       border:1px solid var(--border, #444);
+                                       background:var(--surface2, #2a2a3e); color:inherit;
+                                       font-size:0.95rem; box-sizing:border-box;">
+                            <option value="">— Select —</option>
+                            <option value="MTN">MTN MoMo</option>
+                            <option value="VOD">Telecel Cash</option>
+                            <option value="ATL">AirtelTigo Money</option>
+                        </select>
+                    </div>
+                    <div>
+                        <button type="submit"
+                                style="padding:10px 24px; border-radius:8px; border:none;
+                                       background:var(--primary, #00c853); color:#000;
+                                       font-weight:700; font-size:0.95rem; cursor:pointer;
+                                       white-space:nowrap;">
+                            Withdraw
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        {# ── Withdrawal History ── #}
+        <div class="card">
+            <p class="section-title">Withdrawal History</p>
+            {% if withdrawals %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Reference</th>
+                            <th>Amount (GHS)</th>
+                            <th>Phone</th>
+                            <th>Network</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for w in withdrawals %}
+                        <tr>
+                            <td style="font-size:0.8rem; color:var(--muted);">
+                                {{ w.created_at|date:"d M Y, H:i" }}
+                            </td>
+                            <td style="font-family:monospace; font-size:0.8rem;">{{ w.reference }}</td>
+                            <td><strong style="color:var(--primary);">{{ w.amount|floatformat:2 }}</strong></td>
+                            <td>{{ w.phone_number }}</td>
+                            <td>{{ w.network }}</td>
+                            <td>
+                                <span style="padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600;
+                                            background:{% if w.status == 'completed' %}rgba(0,200,83,0.15){% elif w.status == 'pending' %}rgba(255,193,7,0.15){% else %}rgba(244,67,54,0.15){% endif %};
+                                            color:{% if w.status == 'completed' %}#00c853{% elif w.status == 'pending' %}#ffc107{% else %}#f44336{% endif %};">
+                                    {{ w.status|title }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="color:var(--muted); font-size:0.9rem; text-align:center; padding:24px 0;">No withdrawals yet.</p>
+            {% endif %}
+        </div>
+
+    </main>
+</div>
+{% endblock %}

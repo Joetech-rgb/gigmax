@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+{% block title %}Customer Refunds{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+        <h1 class="page-title"><i class="fa fa-money-bill-transfer"></i> Customer Refunds</h1>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #FF6D00;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Total Waiting</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#FF6D00;">{{ total_count }}</div>
+            </div>
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #E91E63;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Awaiting Refund</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#E91E63;">{{ unpaid_count }}</div>
+            </div>
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #00C853;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Already Refunded</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#00C853;">{{ paid_count }}</div>
+            </div>
+        </div>
+
+        {% csrf_token %}
+
+        <div class="card table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Customer Number</th>
+                        <th>Order ID</th>
+                        <th>Agent</th>
+                        <th>GB Size</th>
+                        <th>Network</th>
+                        <th>Gets Price</th>
+                        <th>Agent Profit</th>
+                        <th>Retail Price</th>
+                        <th>Paystack Fee</th>
+                        <th>Refund Amount</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ row.order.recipient }}</td>
+                        <td>{{ row.order.order_id }}</td>
+                        <td>{{ row.agent_name }}</td>
+                        <td>{{ row.gb_size|default:"-" }}</td>
+                        <td>{{ row.network_display }}</td>
+                        <td>
+                            {% if row.gets_price is not None %}
+                                GHS {{ row.gets_price|floatformat:2 }}
+                            {% else %}
+                                <span style="color:var(--muted); font-size:0.85rem;">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="color:#00C853; font-weight:600;">
+                            {% if row.agent_profit is not None %}
+                                GHS {{ row.agent_profit|floatformat:2 }}
+                                {% if row.profit_reversed %}
+                                    <br><span style="font-weight:400; font-size:0.78rem; color:var(--muted);">Clawed back</span>
+                                {% endif %}
+                            {% else %}
+                                <span style="color:var(--muted); font-weight:400; font-size:0.85rem;">-</span>
+                            {% endif %}
+                        </td>
+                        <td>GHS {{ row.amount_paid|floatformat:2 }}</td>
+                        <td>
+                            {% if row.paystack_fee is not None %}
+                                GHS {{ row.paystack_fee|floatformat:2 }}
+                            {% else %}
+                                <span style="color:var(--muted); font-size:0.85rem;">unavailable</span>
+                            {% endif %}
+                        </td>
+                        <td style="color:#E91E63; font-weight:600;">
+                            {% if row.refund_amount is not None %}
+                                GHS {{ row.refund_amount|floatformat:2 }}
+                            {% else %}
+                                <span style="color:var(--muted); font-weight:400; font-size:0.85rem;">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ row.order.created_at|date:"d M Y, H:i" }}</td>
+                        <td>
+                            {% if row.is_paid %}
+                                <span style="color:#00C853; font-weight:600;">Refunded</span>
+                            {% else %}
+                                <span style="color:#FF6D00; font-weight:600;">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+                            {% if row.is_paid %}
+                                <span style="color:var(--muted); font-size:0.85rem;">Refunded</span>
+                            {% else %}
+                            <button type="button" class="btn btn-danger btn-sm mark-paid-btn"
+                                    data-order-id="{{ row.order.order_id }}"
+                                    data-customer="{{ row.order.recipient }}"
+                                    data-amount="{% if row.refund_amount is not None %}{{ row.refund_amount|floatformat:2 }}{% else %}{{ row.amount_paid|floatformat:2 }}{% endif %}">
+                                Mark Refunded
+                            </button>
+                            {% endif %}
+                            {% if row.can_claw_back %}
+                            <button type="button" class="btn btn-warning btn-sm claw-back-btn"
+                                    data-order-id="{{ row.order.order_id }}"
+                                    data-agent="{{ row.agent_name }}"
+                                    data-profit="{{ row.agent_profit|floatformat:2 }}">
+                                Claw Back Profit
+                            </button>
+                            {% elif row.profit_reversed %}
+                                <span style="color:var(--muted); font-size:0.78rem;">Profit clawed back</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="13" style="text-align:center; color:var(--muted); padding:32px;">No customer orders currently Waiting.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<script>
+document.querySelectorAll('.claw-back-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+        const orderId = this.dataset.orderId;
+        const agentName = this.dataset.agent;
+        const profit = this.dataset.profit;
+
+        const confirmed = confirm(
+            'Claw back GHS ' + profit + ' link profit from ' + agentName + ' for order ' + orderId + '? ' +
+            'This deducts it from their available balance and lifetime earnings. This cannot be undone from here.'
+        );
+        if (!confirmed) return;
+
+        this.disabled = true;
+        const originalText = this.textContent;
+        this.textContent = 'Processing...';
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+            const res = await fetch(`/admin-panel/customer-refunds/${orderId}/claw-back-profit/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+            });
+            const rawText = await res.text();
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseErr) {
+                alert('Server error (status ' + res.status + '). Raw response: ' + rawText.slice(0, 300));
+                this.disabled = false;
+                this.textContent = originalText;
+                return;
+            }
+            if (!res.ok) {
+                alert('Error (status ' + res.status + '): ' + (data.error || JSON.stringify(data)));
+                this.disabled = false;
+                this.textContent = originalText;
+                return;
+            }
+            alert('Clawed back GHS ' + data.amount + ' from ' + agentName + ' for order ' + data.order_id + '.');
+            window.location.reload();
+        } catch (err) {
+            alert('Network/JS error: ' + err.message);
+            this.disabled = false;
+            this.textContent = originalText;
+        }
+    });
+});
+
+document.querySelectorAll('.mark-paid-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+        const orderId = this.dataset.orderId;
+        const customer = this.dataset.customer;
+        const amount = this.dataset.amount;
+
+        const confirmed = confirm(
+            'Have you actually sent GHS ' + amount + ' to ' + customer + ' via MoMo for order ' + orderId + '? ' +
+            'This only marks it as refunded in the system — it does not move any money.'
+        );
+        if (!confirmed) return;
+
+        this.disabled = true;
+        const originalText = this.textContent;
+        this.textContent = 'Processing...';
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+            const res = await fetch(`/admin-panel/customer-refunds/${orderId}/mark-paid/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+            });
+            const rawText = await res.text();
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseErr) {
+                alert('Server error (status ' + res.status + '). Raw response: ' + rawText.slice(0, 300));
+                this.disabled = false;
+                this.textContent = originalText;
+                return;
+            }
+            if (!res.ok) {
+                alert('Error (status ' + res.status + '): ' + (data.error || JSON.stringify(data)));
+                this.disabled = false;
+                this.textContent = originalText;
+                return;
+            }
+            alert('Order ' + data.order_id + ' marked as refunded.');
+            window.location.reload();
+        } catch (err) {
+            alert('Network/JS error: ' + err.message);
+            this.disabled = false;
+            this.textContent = originalText;
+        }
+    });
+});
+</script>
+{% endblock %}

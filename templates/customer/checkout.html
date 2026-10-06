@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Checkout - SK Plug{% endblock %}
+{% block body %}
+<div style="max-width:600px; margin:40px auto; padding:20px;">
+
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+    {% endfor %}
+
+    <div class="card" style="margin-bottom:20px;">
+        <p class="section-title">Order Summary</p>
+        <div style="background:var(--surface2); border-radius:8px; padding:16px;">
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--muted);">Bundle</span>
+                <strong>{{ package.gb_size }}GB</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--muted);">Network</span>
+                <strong>{{ package.network }}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
+                <span style="color:var(--muted);">Recipient</span>
+                <strong>{{ phone }}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:10px 0;">
+                <span style="color:var(--muted);">Price</span>
+                <strong style="color:var(--primary); font-size:1.2rem; font-family:'Syne',sans-serif;">
+                    GHS {{ package.customer_price }}
+                </strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pay with Paystack -->
+    <div class="card" style="margin-bottom:16px;">
+        <p class="section-title">Pay with Paystack</p>
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">
+            Mobile Money, Cards, Bank Transfer
+        </p>
+        <form method="POST" action="{% url 'initiate_payment' package.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="phone" value="{{ phone }}">
+            <button type="submit" class="btn btn-primary btn-full">
+                <i class="fa fa-credit-card"></i> Pay with Paystack
+            </button>
+        </form>
+    </div>
+
+    <!-- Pay with Wallet — only shows if logged in AND has balance -->
+    {% if user.is_authenticated and user.wallet_balance > 0 %}
+    <div class="card" style="border-color:rgba(0,200,83,0.35);">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <p class="section-title" style="margin:0;">Pay with Wallet</p>
+            <span style="font-family:'Syne',sans-serif; font-weight:700; color:var(--primary); font-size:1rem;">
+                GHS {{ user.wallet_balance|floatformat:2 }} available
+            </span>
+        </div>
+
+        {% if user.wallet_balance >= package.customer_price %}
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">
+            Your wallet balance covers this order. Pay instantly — no redirect.
+        </p>
+        <form method="POST" action="/checkout/pay-wallet/{{ package.id }}/">
+            {% csrf_token %}
+            <input type="hidden" name="phone" value="{{ phone }}">
+            <button type="submit" class="btn btn-full"
+                style="background:rgba(0,200,83,0.1); border:1px solid var(--primary); color:var(--primary); font-weight:600;">
+                <i class="fa fa-wallet"></i> Pay GHS {{ package.customer_price }} with Wallet
+            </button>
+        </form>
+        {% else %}
+        <p style="font-size:0.85rem; color:var(--muted);">
+            Your balance (GHS {{ user.wallet_balance|floatformat:2 }}) is not enough for GHS {{ package.customer_price }}.
+            Please top up or pay with Paystack.
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

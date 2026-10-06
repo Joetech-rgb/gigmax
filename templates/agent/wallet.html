@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}Wallet – Agent{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+
+        <h1 class="page-title"><i class="fa fa-wallet"></i> Wallet</h1>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Balance Overview Card -->
+        <div class="card" style="margin-bottom:24px; border-left:4px solid var(--primary); max-width:700px;">
+            <div style="display:flex; justify-content:space-between; align-items:stretch; flex-wrap:wrap; gap:16px;">
+
+                <!-- Total wallet -->
+                <div style="flex:1; min-width:140px;">
+                    <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">Total Wallet</div>
+                    <div style="font-size:2rem; font-weight:800; color:var(--primary);">GHS {{ user.wallet_balance|floatformat:2 }}</div>
+                    <div style="font-size:0.78rem; color:var(--muted); margin-top:2px;">All funds combined</div>
+                </div>
+
+                <div style="width:1px; background:var(--border);"></div>
+
+                <!-- Link profit available -->
+                <div style="flex:1; min-width:140px;">
+                    <div style="font-size:0.75rem; color:#00C853; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">
+                        <i class="fa fa-link" style="margin-right:3px;"></i> Link Profit
+                    </div>
+                    <div style="font-size:1.6rem; font-weight:800; color:#00C853;">GHS {{ link_profit_balance|floatformat:2 }}</div>
+                    <div style="font-size:0.78rem; color:var(--muted); margin-top:2px;">Available to withdraw</div>
+                </div>
+
+                <div style="width:1px; background:var(--border);"></div>
+
+                <!-- Topped-up wallet only -->
+                <div style="flex:1; min-width:140px;">
+                    <div style="font-size:0.75rem; color:#2979FF; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">
+                        <i class="fa fa-credit-card" style="margin-right:3px;"></i> Topped-Up
+                    </div>
+                    <div style="font-size:1.6rem; font-weight:800; color:#2979FF;">GHS {{ wallet_only_balance|floatformat:2 }}</div>
+                    <div style="font-size:0.78rem; color:var(--muted); margin-top:2px;">From your top-ups</div>
+                </div>
+
+                {% if user.debt_balance > 0 %}
+                <div style="width:1px; background:var(--border);"></div>
+                <div style="flex:1; min-width:140px;">
+                    <div style="font-size:0.75rem; color:#f44336; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">Debt Balance</div>
+                    <div style="font-size:1.6rem; font-weight:700; color:#f44336;">GHS {{ user.debt_balance|floatformat:2 }}</div>
+                    <div style="font-size:0.78rem; color:var(--muted); margin-top:2px;">Outstanding</div>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+        <div style="max-width:600px; display:flex; flex-direction:column; gap:20px;">
+
+            <!-- 1. Auto Top-Up -->
+            <div class="card" style="border:3px solid var(--primary); background:linear-gradient(135deg, rgba(0,200,83,0.12), rgba(0,200,83,0.04)); position:relative; overflow:hidden;">
+                <div style="position:absolute; top:0; left:0; background:var(--primary); color:#000; font-size:0.7rem; font-weight:800; padding:4px 14px; border-radius:0 0 10px 0; letter-spacing:0.08em; text-transform:uppercase;">
+                    ⚡ VIP — Instant
+                </div>
+                <p class="section-title" style="color:var(--primary); font-size:1.1rem; margin-top:18px;">
+                    <i class="fa fa-bolt"></i> Auto Top-Up via Paystack
+                </p>
+                <p style="color:var(--muted); font-size:0.9rem; margin-bottom:6px;">
+                    Pay instantly via <strong style="color:var(--text);">card, mobile money or bank transfer</strong>. Wallet credited automatically.
+                </p>
+                <p style="color:var(--warning); font-size:0.85rem; margin-bottom:18px;">
+                    <i class="fa fa-circle-check"></i> No waiting — wallet topped up instantly after payment.
+                </p>
+                <form method="POST" action="/wallet/load/">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>Amount (GHS)</label>
+                        <input type="number" name="amount" class="form-control" placeholder="e.g. 50" min="1" step="0.01" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full" style="font-size:1rem; padding:14px;">
+                        <i class="fa fa-credit-card"></i> Pay with Paystack
+                    </button>
+                </form>
+            </div>
+
+            <!-- 2. Manual Top-Up -->
+            <div class="card" style="border:3px solid var(--primary); background:linear-gradient(135deg, rgba(0,200,83,0.12), rgba(0,200,83,0.04)); position:relative; overflow:hidden;">
+                <div style="position:absolute; top:0; left:0; background:var(--primary); color:#000; font-size:0.7rem; font-weight:800; padding:4px 14px; border-radius:0 0 10px 0; letter-spacing:0.08em; text-transform:uppercase;">
+                    ⭐ Recommended — Manual
+                </div>
+                <p class="section-title" style="color:var(--primary); font-size:1.1rem; margin-top:18px;">
+                    <i class="fa fa-hand-holding-dollar"></i> Manual Top-Up
+                </p>
+                <p style="color:var(--muted); font-size:0.9rem; margin-bottom:6px;">
+                    Send payment via <strong style="color:var(--text);">MoMo or bank transfer</strong>, then tap below to notify Admin instantly.
+                </p>
+                <p style="color:var(--warning); font-size:0.85rem; margin-bottom:18px;">
+                    <i class="fa fa-bolt"></i> Wallet credited within minutes after notification.
+                </p>
+                <a href="https://wa.me/{{ admin_whatsapp }}?text=Hello%2C%20I%20made%20a%20manual%20top-up%20for%20my%20account%20{{ user.phone_number }}"
+                   target="_blank" class="btn btn-outline btn-full" style="font-size:1rem; padding:14px; border-color:var(--primary); color:var(--primary);">
+                    <i class="fab fa-whatsapp"></i> Notify Admin on WhatsApp
+                </a>
+            </div>
+
+            <!-- 3. WITHDRAW LINK PROFIT
+                 Only withdraws from link_profit_balance.
+                 Both link_profit_balance and wallet_balance go down. -->
+            <div class="card" id="withdraw-profit" style="border-left:4px solid #00C853;">
+                <p class="section-title" style="color:#00C853;">
+                    <i class="fa fa-link"></i> Withdraw Link Profit
+                </p>
+
+                <!-- Profit summary -->
+                <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px;">
+                    <div style="background:rgba(0,200,83,0.08); border:1px solid rgba(0,200,83,0.2); border-radius:10px; padding:12px 18px; flex:1; min-width:120px;">
+                        <div style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Available Now</div>
+                        <div style="font-size:1.4rem; font-weight:800; color:#00C853;">GHS {{ link_profit_balance|floatformat:2 }}</div>
+                    </div>
+                    <div style="background:rgba(41,121,255,0.06); border:1px solid rgba(41,121,255,0.15); border-radius:10px; padding:12px 18px; flex:1; min-width:120px;">
+                        <div style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">All Time Earned</div>
+                        <div style="font-size:1.4rem; font-weight:800; color:#2979FF;">GHS {{ total_link_profit_earned|floatformat:2 }}</div>
+                    </div>
+                </div>
+
+                <p style="color:var(--muted); font-size:0.85rem; margin-bottom:4px;">
+                    Withdraw profit earned from your generated links directly to MoMo.
+                </p>
+                <p style="color:#FFA000; font-size:0.8rem; margin-bottom:16px;">
+                    <i class="fa fa-circle-info"></i> A service charge of <strong>GHS 1.00</strong> applies per withdrawal.
+                </p>
+
+                {% if link_profit_balance <= 11 %}
+                <div style="background:rgba(244,67,54,0.08); border:1px solid rgba(244,67,54,0.25); color:#f44336; border-radius:8px; padding:12px 16px; font-size:0.85rem;">
+                    <i class="fa fa-triangle-exclamation"></i>
+                    {% if link_profit_balance <= 0 %}
+                        You have no link profit to withdraw yet. Share your links and start earning!
+                    {% else %}
+                        Minimum withdrawal is GHS 10.00 + GHS 1.00 service charge. 
+                        Your available profit is GHS {{ link_profit_balance|floatformat:2 }}.
+                    {% endif %}
+                </div>
+                {% else %}
+                <form method="POST" action="/wallet/withdraw/link-profit/">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>Amount to Withdraw (GHS)</label>
+                        <input type="number" name="amount" id="profitWithdrawAmount" class="form-control"
+                               placeholder="e.g. 20" min="10.00" step="0.01"
+                               max="{{ link_profit_balance|floatformat:2 }}" required>
+                        <small style="color:var(--muted);">
+                            Available: <strong style="color:#00C853;">GHS {{ link_profit_balance|floatformat:2 }}</strong> —
+                            You will receive: <strong id="profitNetAmount">GHS —</strong> after GHS 1.00 charge.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label>MoMo Number</label>
+                        <input type="tel" name="mobile_number" class="form-control"
+                               placeholder="024XXXXXXX" pattern="0[0-9]{9}"
+                               inputmode="numeric" maxlength="10"
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Network</label>
+                        <select name="network" class="form-control" required>
+                            <option value="" disabled selected>— Select Network —</option>
+                            <option value="MTN">MTN MoMo</option>
+                            <option value="TELECEL">Telecel Cash</option>
+                            <option value="AT">AirtelTigo Money</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full"
+                            style="background:#00C853; border-color:#00C853;"
+                            onclick="return confirm('Withdraw link profit? GHS 1.00 service charge applies.')">
+                        <i class="fa fa-paper-plane"></i> Withdraw Link Profit
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+            <!-- 4. WITHDRAW WALLET BALANCE (topped-up money only)
+                 Only withdraws wallet_only_balance (wallet - link_profit).
+                 link_profit_balance is NOT touched. -->
+            <div class="card" id="withdraw-wallet" style="border-left:4px solid #2979FF;">
+                <p class="section-title" style="color:#2979FF;">
+                    <i class="fa fa-money-bill-wave"></i> Withdraw Wallet Balance
+                </p>
+                <p style="color:var(--muted); font-size:0.85rem; margin-bottom:4px;">
+                    Withdraw your topped-up wallet balance to mobile money.
+                    <br><span style="font-size:0.8rem; color:var(--muted);">Note: Link profit is kept separate — use the section above to withdraw that.</span>
+                </p>
+                <p style="color:#FFA000; font-size:0.8rem; margin-bottom:16px;">
+                    <i class="fa fa-circle-info"></i> A service charge of <strong>GHS 1.00</strong> applies per withdrawal.
+                </p>
+
+                {% if wallet_only_balance <= 11 %}
+                <div style="background:rgba(244,67,54,0.08); border:1px solid rgba(244,67,54,0.25); color:#f44336; border-radius:8px; padding:12px 16px; font-size:0.85rem;">
+                    <i class="fa fa-triangle-exclamation"></i>
+                    {% if wallet_only_balance <= 0 %}
+                        No topped-up balance available. Top up your wallet to use this.
+                    {% else %}
+                        Minimum withdrawal is GHS 10.00 + GHS 1.00 service charge.
+                        Your topped-up balance is GHS {{ wallet_only_balance|floatformat:2 }}.
+                    {% endif %}
+                </div>
+                {% else %}
+                <form method="POST" action="/wallet/withdraw/">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>Amount to Withdraw (GHS)</label>
+                        <input type="number" name="amount" id="walletWithdrawAmount" class="form-control"
+                               placeholder="e.g. 20" min="10.00" step="0.01"
+                               max="{{ wallet_only_balance|floatformat:2 }}" required>
+                        <small style="color:var(--muted);">
+                            Available: <strong style="color:#2979FF;">GHS {{ wallet_only_balance|floatformat:2 }}</strong> —
+                            You will receive: <strong id="walletNetAmount">GHS —</strong> after GHS 1.00 charge.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label>MoMo Number</label>
+                        <input type="tel" name="mobile_number" class="form-control"
+                               placeholder="024XXXXXXX" pattern="0[0-9]{9}"
+                               inputmode="numeric" maxlength="10"
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Network</label>
+                        <select name="network" class="form-control" required>
+                            <option value="" disabled selected>— Select Network —</option>
+                            <option value="MTN">MTN MoMo</option>
+                            <option value="TELECEL">Telecel Cash</option>
+                            <option value="AT">AirtelTigo Money</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-outline btn-full"
+                            style="border-color:#2979FF; color:#2979FF;"
+                            onclick="return confirm('Withdraw wallet balance? GHS 1.00 service charge applies.')">
+                        <i class="fa fa-paper-plane"></i> Withdraw Wallet Balance
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- Transaction History -->
+        <div class="card" style="margin-top:24px; max-width:760px;">
+            <p class="section-title"><i class="fa fa-clock-rotate-left"></i> Transaction History</p>
+            {% if transactions %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in transactions %}
+                    <tr>
+                        <td>{{ tx.created_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            {{ tx.get_transaction_type_display }}
+                            {% if tx.reference|slice:":4" == "WLP-" %}
+                            <span style="font-size:0.7rem; background:rgba(0,200,83,0.15); color:#00C853; padding:1px 6px; border-radius:8px; margin-left:4px;">Link Profit</span>
+                            {% endif %}
+                        </td>
+                        <td style="color:{% if tx.transaction_type == 'credit' %}var(--primary){% else %}#f44336{% endif %};">
+                            {% if tx.transaction_type == 'credit' %}+{% else %}-{% endif %}GHS {{ tx.amount|floatformat:2 }}
+                        </td>
+                        <td><span class="status-badge status-{{ tx.status }}">{{ tx.status }}</span></td>
+                        <td style="font-size:0.8rem; color:var(--muted);">{{ tx.reference }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:var(--muted); font-size:0.9rem;">No transactions yet.</p>
+            {% endif %}
+        </div>
+
+    </main>
+</div>
+
+<script>
+// Link profit withdrawal — net amount preview
+const profitAmt = document.getElementById('profitWithdrawAmount');
+const profitNet = document.getElementById('profitNetAmount');
+if (profitAmt) {
+    profitAmt.addEventListener('input', function () {
+        const val = parseFloat(this.value);
+        profitNet.textContent = (!isNaN(val) && val >= 1.01) ? 'GHS ' + (val - 1).toFixed(2) : 'GHS —';
+    });
+}
+
+// Wallet withdrawal — net amount preview
+const walletAmt = document.getElementById('walletWithdrawAmount');
+const walletNet = document.getElementById('walletNetAmount');
+if (walletAmt) {
+    walletAmt.addEventListener('input', function () {
+        const val = parseFloat(this.value);
+        walletNet.textContent = (!isNaN(val) && val >= 1.01) ? 'GHS ' + (val - 1).toFixed(2) : 'GHS —';
+    });
+}
+</script>
+{% endblock %}

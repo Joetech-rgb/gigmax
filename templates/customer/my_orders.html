@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}My Orders — SK Plug{% endblock %}
+{% block body %}
+<div style="max-width:900px; margin:0 auto; padding:32px 24px;">
+    <h1 class="page-title">My Orders</h1>
+
+    <form method="get" class="card" style="margin-bottom:20px;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <input type="text" name="search" value="{{ search }}"
+                   class="form-control" placeholder="Search by number..." style="flex:1; min-width:160px;">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control" style="width:160px;">
+            <input type="date" name="date_to"   value="{{ date_to }}"   class="form-control" style="width:160px;">
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </div>
+    </form>
+
+    <div class="card table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th><th>Network</th><th>Recipient</th>
+                    <th>GB</th><th>Status</th><th>Price</th><th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in orders %}
+                <tr>
+                    <td><code>{{ o.order_id }}</code></td>
+                    <td>{{ o.network }}</td>
+                    <td>{{ o.recipient }}</td>
+                    <td>{{ o.gb_package.gb_size }}GB</td>
+                    <td>
+                        <span class="badge
+                            {% if o.status == 'delivered' %}badge-success
+                            {% elif o.status == 'processing' %}badge-warning
+                            {% elif o.status == 'failed' %}badge-danger
+                            {% else %}badge-muted{% endif %}">
+                            {% if o.status == 'kuntanii_unverified' %}Waiting{% else %}{{ o.get_status_display }}{% endif %}
+                        </span>
+                        {% if o.status == 'waiting' or o.status == 'kuntanii_unverified' %}
+                        <form method="post" action="{% url 'request_refund' o.order_id %}" style="margin-top:6px;"
+                              onsubmit="return confirm('Request a refund for this order?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline btn-sm" style="font-size:0.72rem; padding:4px 10px;">
+                                Request Refund
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                    <td>GHS {{ o.price_paid }}</td>
+                    <td style="color:var(--muted); font-size:0.85rem;">{{ o.created_at|date:"d M Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px;">No orders found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

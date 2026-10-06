@@ -1,0 +1,229 @@
+{% load order_filters %}
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        {% if user.role == 'admin' %}
+            <a href="/admin-panel/dashboard/" class="nav-item {% if request.path == '/admin-panel/dashboard/' %}active{% endif %}">
+                <i class="fa fa-gauge"></i> <span>Dashboard</span>
+            </a>
+
+            <a href="/admin-panel/mtn-api/" class="nav-item {% if request.path == '/admin-panel/mtn-api/' %}active{% endif %}">
+                <i class="fa fa-robot"></i> <span>Mtn api orders</span>
+            </a>
+
+            <a href="/admin-panel/mtn-manual/" class="nav-item {% if request.path == '/admin-panel/mtn-manual/' %}active{% endif %}">
+                <i class="fa fa-handshake"></i> <span>Mtn manual orders</span>
+            </a>
+
+            <a href="/admin-panel/blocked-recipients/" class="nav-item {% if request.path == '/admin-panel/blocked-recipients/' %}active{% endif %}">
+                <i class="fa fa-ban"></i> <span>Blocked Numbers</span>
+            </a>
+            <a href="/admin-panel/agents-waiting-refund/" class="nav-item {% if request.path == '/admin-panel/agents-waiting-refund/' %}active{% endif %}">
+                <i class="fa fa-users"></i> <span>Agents Waiting/Refund</span>
+            </a>
+            <a href="/admin-panel/refund-requests/" class="nav-item {% if request.path == '/admin-panel/refund-requests/' %}active{% endif %}">
+                <i class="fa fa-rotate-left"></i> <span>Refund Requests</span>
+            </a>
+            <a href="/admin-panel/customer-refunds/" class="nav-item {% if request.path == '/admin-panel/customer-refunds/' %}active{% endif %}">
+                <i class="fa fa-money-bill-transfer"></i> <span>Customer Refunds</span>
+            </a>
+
+            <a href="/admin-panel/other-networks/" class="nav-item {% if request.path == '/admin-panel/other-networks/' %}active{% endif %}">
+                <i class="fa fa-network-wired"></i> <span>Other Network</span>
+            </a>
+
+            <a href="/admin-panel/afa/" class="nav-item {% if request.path == '/admin-panel/afa/' %}active{% endif %}">
+                <i class="fa fa-id-card"></i> <span>AFA BUNDLE</span>
+            </a>
+
+            <a href="/admin-panel/orders-analysis/" class="nav-item {% if request.path == '/admin-panel/orders-analysis/' %}active{% endif %}">
+                <i class="fa fa-chart-pie"></i> <span>ORDER analysis</span>
+            </a>
+
+            <a href="/admin-panel/agent-requests/" class="nav-item {% if request.path == '/admin-panel/agent-requests/' %}active{% endif %}">
+                <i class="fa fa-user-clock"></i> <span>Agent Requests</span>
+            </a>
+            <a href="/admin-panel/agent-roles/" class="nav-item {% if request.path == '/admin-panel/agent-roles/' %}active{% endif %}">
+                <i class="fa fa-layer-group"></i> <span>Agent Roles</span>
+            </a>
+
+            <a href="/admin-panel/debt/" class="nav-item {% if request.path == '/admin-panel/debt/' %}active{% endif %}">
+                <i class="fa fa-file-invoice-dollar"></i> <span>Debt page</span>
+            </a>
+
+            <a href="/admin-panel/api-usage/" class="nav-item {% if request.path == '/admin-panel/api-usage/' %}active{% endif %}">
+                <i class="fa fa-microchip"></i> <span>API USAGE</span>
+            </a>
+
+            <a href="/admin-panel/api-requests/" class="nav-item {% if request.path == '/admin-panel/api-requests/' %}active{% endif %}">
+                <i class="fa fa-code-pull-request"></i> <span>API REQUEST</span>
+            </a>
+
+            <a href="/admin-panel/users/" class="nav-item {% if request.path == '/admin-panel/users/' %}active{% endif %}">
+                <i class="fa fa-users"></i> <span>Users</span>
+            </a>
+
+            <a href="/admin-panel/bundles/" class="nav-item {% if request.path == '/admin-panel/bundles/' %}active{% endif %}">
+                <i class="fa fa-box-open"></i> <span>Bundle Packages</span>
+            </a>
+
+            <a href="/admin-panel/generated-links/" class="nav-item {% if request.path == '/admin-panel/generated-links/' %}active{% endif %}">
+                <i class="fa fa-link"></i> <span>Generated links</span>
+            </a>
+
+            <a href="/admin-panel/wallet-topup/" class="nav-item {% if request.path == '/admin-panel/wallet-topup/' %}active{% endif %}">
+                <i class="fa fa-wallet"></i> <span>Wallet Top up</span>
+            </a>
+
+            <a href="/admin-panel/withdrawals/" class="nav-item {% if request.path == '/admin-panel/withdrawals/' %}active{% endif %}">
+                <i class="fa fa-money-bill-transfer"></i> <span>Withdrawals</span>
+            </a>
+
+            <a href="/admin-panel/notices/" class="nav-item {% if request.path == '/admin-panel/notices/' %}active{% endif %}">
+                <i class="fa fa-bullhorn"></i> <span>Notice Board</span>
+            </a>
+
+            <a href="/admin-panel/fee-settings/" class="nav-item {% if request.path == '/admin-panel/fee-settings/' %}active{% endif %}">
+                <i class="fa fa-sliders"></i> <span>FEE</span>
+            </a>
+
+        {% else %}
+            <a href="/agent/dashboard/" class="nav-item {% if request.path == '/agent/dashboard/' %}active{% endif %}">
+                <i class="fa fa-gauge"></i> <span>Dashboard</span>
+            </a>
+
+            <div class="nav-dropdown">
+                <button class="nav-item nav-dropdown-btn {% if '/agent/buy/' in request.path %}active{% endif %}" onclick="toggleDropdown('buyDropdown')">
+                    <i class="fa fa-cart-plus"></i> <span>Buy Data</span>
+                    <i class="fa fa-chevron-down nav-arrow" id="buyArrow"></i>
+                </button>
+                <div class="nav-dropdown-menu {% if '/agent/buy/' in request.path %}open{% endif %}" id="buyDropdown">
+                    <a href="/agent/buy/single/" class="nav-sub-item {% if request.path == '/agent/buy/single/' %}active{% endif %}"><i class="fa fa-circle-dot"></i> <span>Single Order</span></a>
+                    <a href="/agent/buy/bulk/" class="nav-sub-item {% if request.path == '/agent/buy/bulk/' %}active{% endif %}"><i class="fa fa-list-ol"></i> <span>Bulk Order</span></a>
+                    <a href="/agent/buy/excel/" class="nav-sub-item {% if request.path == '/agent/buy/excel/' %}active{% endif %}"><i class="fa fa-file-excel"></i> <span>Excel Upload</span></a>
+                </div>
+            </div>
+
+            <a href="/agent/afa/" class="nav-item {% if request.path == '/agent/afa/' %}active{% endif %}">
+                <i class="fa fa-id-card"></i> <span>AFA Bundle</span>
+            </a>
+
+            <a href="/agent/orders/" class="nav-item {% if request.path == '/agent/orders/' %}active{% endif %}">
+                <i class="fa fa-list"></i> <span>My Orders</span>
+            </a>
+
+            <a href="/agent/wallet/" class="nav-item {% if request.path == '/agent/wallet/' %}active{% endif %}">
+                <i class="fa fa-wallet"></i> <span>Wallet</span>
+            </a>
+
+            {% if user.debt_page_access %}
+            <a href="/agent/debt/" class="nav-item {% if request.path == '/agent/debt/' %}active{% endif %}">
+                <i class="fa fa-file-invoice-dollar"></i> <span>Debt</span>
+            </a>
+            {% endif %}
+
+            <a href="/agent/links/" class="nav-item {% if '/agent/links/' in request.path %}active{% endif %}">
+                <i class="fa fa-link"></i> <span>Generated Links</span>
+            </a>
+
+            <a href="/agent/complaint/" class="nav-item {% if request.path == '/agent/complaint/' %}active{% endif %}">
+                <i class="fa fa-comment-dots"></i> <span>Send Complaint</span>
+            </a>
+
+            <a href="/agent/api-docs/" class="nav-item {% if request.path == '/agent/api-docs/' %}active{% endif %}">
+                <i class="fa fa-code"></i> <span>API Docs</span>
+            </a>
+
+            <a href="https://chat.whatsapp.com/E2Nlg7Rh1xDK7ENgN2FCUM" target="_blank" class="nav-item">
+                <i class="fab fa-whatsapp"></i> <span>Community</span>
+            </a>
+
+            <a href="/terms/" class="nav-item {% if request.path == '/terms/' %}active{% endif %}">
+                <i class="fa fa-book"></i> <span>Rules & Regulations</span>
+            </a>
+        {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+        <span class="nav-user-name">{{ user.full_name }}</span>
+        {% if user.agent_profile.agent_tier == 'small' %}
+            <span class="nav-user-role tier-small">🟢 Small Agent</span>
+        {% elif user.agent_profile.agent_tier == 'moderate' %}
+            <span class="nav-user-role tier-moderate">🔵 Moderate Agent</span>
+        {% elif user.agent_profile.agent_tier == 'mega' %}
+            <span class="nav-user-role tier-mega">🟡 Mega Agent</span>
+        {% elif user.agent_profile.agent_tier == 'super_mega' %}
+            <span class="nav-user-role tier-super-mega">🟠 Super-Mega Agent</span>
+        {% elif user.agent_profile.agent_tier == 'extreme' %}
+            <span class="nav-user-role tier-extreme">🔥 Extreme Agent</span>
+        {% else %}
+            <span class="nav-user-role">{{ user.get_role_display }}</span>
+        {% endif %}
+    </div>
+</aside>
+
+<style>
+.sidebar-nav { flex: 1; padding: 0 12px; }
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+    transition: all 0.2s;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.nav-item:hover, .nav-item.active { background: rgba(0,200,83,0.1); color: var(--primary); }
+.nav-item i { width: 18px; text-align: center; flex-shrink: 0; }
+.nav-arrow { margin-left: auto; font-size: 0.7rem; transition: transform 0.2s; flex-shrink: 0; }
+.nav-dropdown-menu { display: none; padding-left: 16px; }
+.nav-dropdown-menu.open { display: block; }
+.nav-sub-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+    transition: all 0.2s;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.nav-sub-item:hover, .nav-sub-item.active { background: rgba(0,200,83,0.08); color: var(--primary); }
+
+.sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); margin-top: 16px; }
+.nav-user-name { display: block; font-weight: 600; font-size: 0.9rem; }
+.nav-user-role { display: block; font-size: 0.78rem; margin-top: 4px; font-weight: 700; letter-spacing: 0.03em; }
+
+.tier-small { color:#00C853; }
+.tier-moderate { color:#2196F3; }
+.tier-mega { color:#FFC107; text-shadow:0 0 6px rgba(255,193,7,0.4); }
+.tier-super-mega { color:#FF6D00; text-shadow:0 0 8px rgba(255,109,0,0.5); }
+.tier-extreme { color:#FF1744; text-shadow:0 0 10px rgba(255,23,68,0.6); animation: pulse-fire 1.5s infinite; }
+
+@keyframes pulse-fire {
+    0%, 100% { text-shadow: 0 0 8px rgba(255,23,68,0.5); }
+    50% { text-shadow: 0 0 16px rgba(255,23,68,0.9), 0 0 24px rgba(255,100,0,0.5); }
+}
+</style>
+
+<script>
+function toggleDropdown(id) {
+    const menu = document.getElementById(id);
+    menu.classList.toggle("open");
+    const arrow = document.getElementById(id.replace('Dropdown', 'Arrow'));
+    if(arrow) arrow.style.transform = menu.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+</script>

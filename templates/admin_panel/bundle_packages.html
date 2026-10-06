@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+{% block title %}Bundle Packages – Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="main-content">
+        <h1 class="page-title">Bundle Packages</h1>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        <div class="card" style="margin-bottom:28px;">
+            <p class="section-title">Add New Package</p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add">
+                <div class="grid-3">
+                    <div class="form-group">
+                        <label>Network</label>
+                        <select name="network" class="form-control" required>
+                            <option value="MTN">MTN</option>
+                            <option value="TELECEL">Telecel</option>
+                            <option value="AT_NOEXPIRY">AT Non-Expiry</option>
+                            <option value="AT_EXPIRY">AT Expiry</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>GB Size</label>
+                        <input type="number" name="gb_size" class="form-control" step="0.1" placeholder="e.g. 5" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Label (optional)</label>
+                        <input type="text" name="label" class="form-control" placeholder="e.g. Midnight">
+                    </div>
+                    <div class="form-group">
+                        <label>Base Price (GHS)</label>
+                        <input type="number" name="base_price" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Extreme Agent Price</label>
+                        <input type="number" name="extreme_price" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Super-Mega Price</label>
+                        <input type="number" name="super_mega_price" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mega Price</label>
+                        <input type="number" name="mega_price" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Moderate Price</label>
+                        <input type="number" name="moderate_price" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Small Agent Price</label>
+                        <input type="number" name="small_agent_price" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Customer Price</label>
+                        <input type="number" name="customer_price" class="form-control" step="0.01" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" name="is_promo"> Mark as Promo
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa fa-plus"></i> Add Package
+                </button>
+            </form>
+        </div>
+
+        {% for network, packages in grouped.items %}
+        <div class="card" style="margin-bottom:20px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                <p class="section-title" style="margin:0;">
+                    {{ network }}
+                    <span style="color:var(--muted); font-size:0.8rem; font-weight:400; margin-left:8px;">
+                        {{ packages|length }} package{{ packages|length|pluralize }}
+                    </span>
+                </p>
+                <span style="font-size:0.8rem; color:var(--muted);">Auto-sorted by GB (ascending)</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>GB</th><th>Label</th><th>Promo</th>
+                            <th>Base</th><th>Extreme</th><th>S.Mega</th><th>Mega</th>
+                            <th>Moderate</th><th>S.Agent</th><th>Customer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in packages %}
+                        <tr>
+                            <td><strong>{{ p.gb_size|floatformat:0 }}GB</strong></td>
+                            <td>{{ p.label|default:"—" }}</td>
+                            <td>
+                                {% if p.is_promo %}
+                                <span class="badge badge-warning">Promo</span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>{{ p.base_price }}</td>
+                            <td>{{ p.extreme_price }}</td>
+                            <td>{{ p.super_mega_price }}</td>
+                            <td>{{ p.mega_price }}</td>
+                            <td>{{ p.moderate_price }}</td>
+                            <td>{{ p.small_agent_price }}</td>
+                            <td>{{ p.customer_price }}</td>
+                            <td>
+                                <div style="display:flex; gap:6px;">
+                                    <button class="btn btn-sm btn-outline"
+                                        onclick="openEdit(
+                                            {{ p.pk }}, '{{ p.network }}',
+                                            '{{ p.gb_size }}', '{{ p.label }}',
+                                            '{{ p.base_price }}', '{{ p.extreme_price }}',
+                                            '{{ p.super_mega_price }}', '{{ p.mega_price }}',
+                                            '{{ p.moderate_price }}', '{{ p.small_agent_price }}',
+                                            '{{ p.customer_price }}', {{ p.is_promo|yesno:'true,false' }}
+                                        )">
+                                        <i class="fa fa-pen"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-danger"
+                                        onclick="confirmDelete('Delete {{ p.gb_size|floatformat:0 }}GB {{ p.network }} package?', {{ p.pk }})">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% empty %}
+        <div class="card" style="text-align:center; padding:40px; color:var(--muted);">
+            No packages yet. Add your first package above.
+        </div>
+        {% endfor %}
+
+    </main>
+</div>
+
+<div class="modal-overlay" id="editModal">
+    <div class="modal-box" style="max-width:600px;">
+        <button class="modal-close" onclick="closeEdit()"><i class="fa fa-xmark"></i></button>
+        <p class="modal-title">Edit Package</p>
+        <form method="post" action="/admin-panel/bundles/">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="package_id" id="editId">
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>Network</label>
+                    <select name="network" id="editNetwork" class="form-control">
+                        <option value="MTN">MTN</option>
+                        <option value="TELECEL">Telecel</option>
+                        <option value="AT_NOEXPIRY">AT Non-Expiry</option>
+                        <option value="AT_EXPIRY">AT Expiry</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>GB Size</label>
+                    <input type="number" name="gb_size" id="editGb" class="form-control" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Label</label>
+                    <input type="text" name="label" id="editLabel" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Base Price</label>
+                    <input type="number" name="base_price" id="editBase" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Extreme Price</label>
+                    <input type="number" name="extreme_price" id="editExtreme" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Super-Mega</label>
+                    <input type="number" name="super_mega_price" id="editSuperMega" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Mega</label>
+                    <input type="number" name="mega_price" id="editMega" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Moderate</label>
+                    <input type="number" name="moderate_price" id="editModerate" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Small Agent</label>
+                    <input type="number" name="small_agent_price" id="editSmallAgent" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Customer</label>
+                    <input type="number" name="customer_price" id="editCustomer" class="form-control" step="0.01">
+                </div>
+            </div>
+            <div class="form-group">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" name="is_promo" id="editPromo"> Mark as Promo
+                </label>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:8px;">
+                <button type="submit" class="btn btn-primary" style="flex:1;">
+                    <i class="fa fa-check"></i> Save Changes
+                </button>
+                <button type="button" class="btn btn-outline" onclick="closeEdit()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<form id="deleteForm" method="post" action="/admin-panel/bundles/" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete">
+    <input type="hidden" name="package_id" id="deleteId">
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openEdit(id, network, gb, label, base, extreme, superMega, mega, moderate, smallAgent, customer, isPromo) {
+    document.getElementById('editId').value         = id;
+    document.getElementById('editNetwork').value    = network;
+    document.getElementById('editGb').value         = gb;
+    document.getElementById('editLabel').value      = label;
+    document.getElementById('editBase').value       = base;
+    document.getElementById('editExtreme').value    = extreme;
+    document.getElementById('editSuperMega').value  = superMega;
+    document.getElementById('editMega').value       = mega;
+    document.getElementById('editModerate').value   = moderate;
+    document.getElementById('editSmallAgent').value = smallAgent;
+    document.getElementById('editCustomer').value   = customer;
+    document.getElementById('editPromo').checked    = isPromo;
+    document.getElementById('editModal').classList.add('open');
+}
+
+function closeEdit() {
+    document.getElementById('editModal').classList.remove('open');
+}
+
+function confirmDelete(message, pkgId) {
+    openConfirm(message, function() {
+        document.getElementById('deleteId').value = pkgId;
+        document.getElementById('deleteForm').submit();
+    });
+}
+</script>
+{% endblock %}

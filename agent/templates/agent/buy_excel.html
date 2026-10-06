@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Excel Upload — SK Plug{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; max-width:800px;">
+        <h1 class="page-title">Buy Data — Excel Upload</h1>
+
+        {% if not validated %}
+        <form method="post" action="/agent/buy/excel/upload/" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="card" style="margin-bottom:20px;">
+                <p class="section-title">Select Network</p>
+                <select name="network" class="form-control" required>
+                    <option value="">� Choose Network �</option>
+                    {% for net in networks %}
+                    <option value="{{ net }}">{{ net }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="card">
+                <p class="section-title">Upload Excel File</p>
+                <p style="color:var(--muted); font-size:0.85rem; margin-bottom:16px;">
+                    Column 1 = Phone Number, Column 2 = GB Size. First row is header (skipped).
+                </p>
+                <div class="upload-zone" id="uploadZone">
+                    <i class="fa fa-file-excel" style="font-size:2rem; color:var(--primary); margin-bottom:12px;"></i>
+                    <p>Drag & drop Excel file or click to browse</p>
+                    <input type="file" name="excel_file" accept=".xlsx,.xls" required id="fileInput" style="display:none;">
+                    <button type="button" class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="document.getElementById('fileInput').click()">
+                        Choose File
+                    </button>
+                    <p id="fileName" style="margin-top:8px; font-size:0.85rem; color:var(--primary);"></p>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" style="margin-top:16px;">Upload & Validate</button>
+            </div>
+        </form>
+
+        {% else %}
+        {% if valid %}
+        <div class="card" style="margin-bottom:20px; border-color:var(--primary);">
+            <p class="section-title" style="color:var(--primary);">Place Order</p>
+            <div class="grid-3" style="margin-bottom:16px;">
+                <div class="stat-card"><div class="stat-label">Valid Orders</div><div class="stat-value">{{ valid|length }}</div></div>
+                <div class="stat-card"><div class="stat-label">Total GB</div><div class="stat-value">{{ total_gb }}GB</div></div>
+                <div class="stat-card"><div class="stat-label">Total Amount</div><div class="stat-value">GHS {{ total_amount|floatformat:2 }}</div></div>
+            </div>
+            <form method="post" action="/agent/buy/excel/submit/">
+                {% csrf_token %}
+                <input type="hidden" name="network" value="{{ network }}">
+                {% for row in valid %}
+                <input type="hidden" name="recipients"  value="{{ row.number }}">
+                <input type="hidden" name="package_ids" value="{{ row.package_id }}">
+                <input type="hidden" name="prices"      value="{{ row.price }}">
+                {% endfor %}
+                <button type="submit" class="btn btn-primary btn-full">
+                    <i class="fa fa-paper-plane"></i> Place {{ valid|length }} Orders &mdash; GHS {{ total_amount|floatformat:2 }}
+                </button>
+            </form>
+            <p style="color:var(--muted); font-size:0.8rem; margin-top:8px; text-align:center;">Wallet: <strong style="color:var(--primary);">GHS {{ request.user.wallet_balance|floatformat:2 }}</strong></p>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+            <p class="section-title" style="color:var(--primary);">✓ Valid Orders ({{ valid|length }})</p>
+            <div class="table-wrap"><table>
+                <thead><tr><th>#</th><th>Number</th><th>GB</th><th>Amount</th></tr></thead>
+                <tbody>
+                {% for row in valid %}
+                <tr><td>{{ forloop.counter }}</td><td>{{ row.number }}</td><td>{{ row.gb }}GB</td><td>GHS {{ row.price|floatformat:2 }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+        {% endif %}
+        {% if invalid %}
+        <div class="card" style="margin-top:16px;">
+            <p class="section-title" style="color:var(--danger);">❌ Invalid ({{ invalid|length }})</p>
+            {% for row in invalid %}
+            <div style="padding:8px 0; border-bottom:1px solid var(--border); font-size:0.85rem;">
+                <code>{{ row.line }}</code> — <span style="color:var(--danger);">{{ row.reason }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+    </main>
+</div>
+<style>
+.upload-zone { border:2px dashed var(--border); border-radius:var(--radius); padding:40px; text-align:center; transition:border-color 0.2s; }
+.upload-zone:hover { border-color:var(--primary); }
+.net-buttons { display:flex; flex-wrap:wrap; gap:10px; }
+.net-btn { padding:10px 20px; border-radius:8px; border:1px solid var(--border); color:var(--muted); font-family:'Syne',sans-serif; font-weight:600; cursor:pointer; }
+.net-btn:has(input:checked) { border-color:var(--primary); color:var(--primary); background:rgba(0,200,83,0.08); }
+</style>
+<script>
+document.getElementById('fileInput').addEventListener('change', function() {
+    document.getElementById('fileName').textContent = this.files[0]?.name || '';
+});
+</script>
+{% endblock %}

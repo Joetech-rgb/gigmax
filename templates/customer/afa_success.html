@@ -1,0 +1,206 @@
+﻿{% extends "base.html" %}
+{% block body %}
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .success-wrapper {
+    min-height: 100vh;
+    background: #0a0a0a;
+    font-family: 'Segoe UI', sans-serif;
+    padding: 30px 16px;
+  }
+
+  .success-card {
+    background: #111;
+    border: 1px solid #00cc44;
+    border-radius: 16px;
+    padding: 36px 32px;
+    max-width: 480px;
+    margin: 0 auto 24px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0,200,0,0.15);
+  }
+
+  .checkmark {
+    font-size: 64px;
+    margin-bottom: 16px;
+  }
+
+  .success-card h2 {
+    color: #00ff55;
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .success-card p {
+    color: #888;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #1a1a1a;
+    font-size: 13px;
+  }
+
+  .detail-row span:first-child { color: #555; }
+  .detail-row span:last-child { color: #fff; font-weight: 600; }
+
+  .status-badge {
+    display: inline-block;
+    background: #1a3a1a;
+    color: #00cc44;
+    border: 1px solid #00cc44;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .btn-new {
+    display: block;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 30px;
+    padding: 14px;
+    background: linear-gradient(135deg, #00aa33, #00cc44);
+    color: #000;
+    font-weight: 800;
+    font-size: 15px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .orders-section {
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .orders-section h3 {
+    color: #00cc44;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    padding-left: 4px;
+  }
+
+  .order-card {
+    background: #111;
+    border: 1px solid #1e1e1e;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+
+  .order-card:hover { border-color: #00cc44; }
+
+  .order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .order-name {
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .order-date {
+    color: #444;
+    font-size: 11px;
+  }
+
+  .order-detail {
+    color: #666;
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .badge-pending { background: #2a2a00; color: #ffcc00; border: 1px solid #ffcc00; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+  .badge-processing { background: #001a3a; color: #4499ff; border: 1px solid #4499ff; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+  .badge-delivered { background: #0a2a0a; color: #00cc44; border: 1px solid #00cc44; border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+
+  .empty-orders {
+    text-align: center;
+    color: #333;
+    padding: 30px;
+    font-size: 14px;
+  }
+</style>
+
+<div class="success-wrapper">
+
+  <!-- Success Alert -->
+  <div class="success-card">
+    <div class="checkmark">✅</div>
+    <h2>Application Submitted!</h2>
+    <p>Your AFA application has been received and is being processed.</p>
+
+    <div class="detail-row">
+      <span>Full Name</span>
+      <span>{{ application.full_name }}</span>
+    </div>
+    <div class="detail-row">
+      <span>Phone</span>
+      <span>{{ application.phone_number }}</span>
+    </div>
+    <div class="detail-row">
+      <span>Ghana Card</span>
+      <span>{{ application.ghana_card }}</span>
+    </div>
+    <div class="detail-row">
+      <span>Region</span>
+      <span>{{ application.region }}</span>
+    </div>
+    <div class="detail-row">
+      <span>Location</span>
+      <span>{{ application.location }}</span>
+    </div>
+    <div class="detail-row" style="border-bottom: none;">
+      <span>Status</span>
+      <span class="status-badge">{{ application.status }}</span>
+    </div>
+  </div>
+
+  <!-- New Application Button -->
+  <a href="{% url 'afa_apply' %}" class="btn-new">➕ Submit Another Application</a>
+
+  <!-- Orders List -->
+  <div class="orders-section">
+    <h3>📋 My AFA Orders</h3>
+
+    {% if orders %}
+      {% for order in orders %}
+        <div class="order-card">
+          <div class="order-header">
+            <span class="order-name">{{ order.full_name }}</span>
+            <span class="
+              {% if order.status == 'pending' %}badge-pending
+              {% elif order.status == 'processing' %}badge-processing
+              {% else %}badge-delivered{% endif %}
+            ">{{ order.status }}</span>
+          </div>
+          <div class="order-detail">📞 {{ order.phone_number }}</div>
+          <div class="order-detail">🪪 {{ order.ghana_card }}</div>
+          <div class="order-detail">📍 {{ order.location }}, {{ order.region }}</div>
+          <div class="order-date" style="margin-top: 8px;">{{ order.created_at|date:"d M Y, H:i" }}</div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-orders">No other orders found.</div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

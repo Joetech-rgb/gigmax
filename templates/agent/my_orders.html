@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% block title %}My Orders - SK Plug{% endblock %}
+{% block body %}
+
+{% include 'partials/sidebar.html' %}
+
+<div class="main-content">
+    <h1 class="page-title">My Orders</h1>
+
+    <!-- Filter form -->
+    <form method="get" class="card" style="margin-bottom:20px;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <input type="text" name="search" value="{{ search }}" class="form-control"
+                   placeholder="Search by number..." style="flex:1; min-width:160px;">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control" style="width:160px;">
+            <input type="date" name="date_to"   value="{{ date_to }}"   class="form-control" style="width:160px;">
+            <select name="status" class="form-control" style="width:170px;">
+                <option value="">All Statuses</option>
+                {% for value, label in all_statuses %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">Filter</button>
+            {% if search or date_from or date_to or status_filter %}
+            <a href="/agent/orders/" class="btn btn-outline">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if status_summary %}
+    <div class="card" style="margin-bottom:20px; display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
+        <strong>Summary:</strong>
+        <span>✅ {{ status_summary.delivered }} Delivered &mdash; GHS {{ status_summary.delivered_amount|floatformat:2 }}</span>
+        <span>⏳ {{ status_summary.waiting }} Waiting &mdash; GHS {{ status_summary.waiting_amount|floatformat:2 }}</span>
+        <span>❌ {{ status_summary.failed }} Failed &mdash; GHS {{ status_summary.failed_amount|floatformat:2 }}</span>
+        <span>💰 {{ status_summary.refunded }} Refund &mdash; GHS {{ status_summary.refunded_amount|floatformat:2 }}</span>
+    </div>
+    <div style="font-size:0.78rem; color:var(--muted); margin-top:-14px; margin-bottom:20px;">
+        As of {{ status_summary.as_of|date:"d M Y, H:i" }}
+    </div>
+    {% endif %}
+
+    <!-- Results summary -->
+    <div style="margin-bottom:12px; color:var(--muted); font-size:0.875rem;">
+        {% if orders.paginator.count == 0 %}
+            No orders found.
+        {% else %}
+            Showing {{ orders.start_index }}–{{ orders.end_index }} of {{ orders.paginator.count }} order{{ orders.paginator.count|pluralize }}
+            {% if search or date_from or date_to %}(filtered){% endif %}
+        {% endif %}
+    </div>
+
+    {% if status_filter == 'waiting' %}
+    <div class="card" style="margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        {% csrf_token %}
+        <button type="button" id="markDeliveredBtn" class="btn btn-primary" disabled>
+            <i class="fa fa-check"></i> Mark Selected as Delivered (<span id="selectedCount">0</span>)
+        </button>
+        <span id="bulkStatusMsg" style="font-size:0.85rem; color:var(--muted);"></span>
+    </div>
+    {% endif %}
+
+    <!-- Table -->
+    <div class="card table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    {% if status_filter == 'waiting' %}
+                    <th><input type="checkbox" id="selectAllBox"></th>
+                    {% endif %}
+                    <th>Order ID</th>
+                    <th>Network</th>
+                    <th>Recipient</th>
+                    <th>GB</th>
+                    <th>Status</th>
+                    <th>Price</th>
+                    <th>Profit</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o, profit in orders_with_profit %}
+                <tr>
+                    {% if status_filter == 'waiting' %}
+                    <td><input type="checkbox" class="orderCheckbox" value="{{ o.order_id }}"></td>
+                    {% endif %}
+                    <td>
+                        <code>{{ o.order_id }}</code>
+                        {% if o.source == 'generated_link' %}
+                        <span class="badge badge-info" style="font-size:0.7rem; margin-left:4px;">GL</span>
+                        {% endif %}
+                        {% if o.source == 'api' %}
+                        <span class="badge badge-muted" style="font-size:0.7rem; margin-left:4px;">API</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge
+                            {% if o.network == 'MTN' %}badge-warning
+                            {% elif o.network == 'TELECEL' %}badge-success
+                            {% else %}badge-info{% endif %}"
+                            style="font-size:0.75rem;">
+                            {{ o.network }}
+                        </span>
+                    </td>
+                    <td><strong>{{ o.recipient }}</strong></td>
+                    <td>
+                        {% if o.gb_package %}
+                            {{ o.gb_package.gb_size|floatformat:0 }}GB
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <span class="badge
+                            {% if o.status == 'delivered' %}badge-success
+                            {% elif o.status == 'processing' %}badge-warning
+                            {% elif o.status == 'failed' %}badge-danger
+                            {% else %}badge-muted{% endif %}">
+                            {% if o.status == 'kuntanii_unverified' %}Waiting{% else %}{{ o.get_status_display }}{% endif %}
+                        </span>
+                    </td>
+                    <td>GHS {{ o.price_paid }}</td>
+                    <td>
+                        {% if profit is not None %}
+                        <span style="color:var(--primary); font-weight:700;">+GHS {{ profit }}</span>
+                        {% else %}
+                        <span style="color:var(--muted);">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="color:var(--muted); font-size:0.85rem; white-space:nowrap;">
+                        {{ o.created_at|date:"d M Y H:i" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{% if status_filter == 'waiting' %}9{% else %}8{% endif %}" style="text-align:center; color:var(--muted); padding:40px;">
+                        No orders found.
+                        {% if search or date_from or date_to %}
+                        <br><a href="/agent/orders/" style="color:var(--primary); font-size:0.85rem;">Clear filters</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if orders.has_other_pages %}
+    <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:24px; flex-wrap:wrap;">
+
+        {% if orders.has_previous %}
+        <a href="?page=1&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}&status={{ status_filter }}"
+           class="btn btn-outline" style="font-size:0.85rem; padding:6px 12px;">« First</a>
+        <a href="?page={{ orders.previous_page_number }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}&status={{ status_filter }}"
+           class="btn btn-outline" style="font-size:0.85rem; padding:6px 12px;">‹ Prev</a>
+        {% endif %}
+
+        {% for num in orders.paginator.page_range %}
+            {% if num >= orders.number|add:"-2" and num <= orders.number|add:"2" %}
+                {% if num == orders.number %}
+                <span class="btn btn-primary" style="font-size:0.85rem; padding:6px 12px; cursor:default;">{{ num }}</span>
+                {% else %}
+                <a href="?page={{ num }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}&status={{ status_filter }}"
+                   class="btn btn-outline" style="font-size:0.85rem; padding:6px 12px;">{{ num }}</a>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+
+        {% if orders.has_next %}
+        <a href="?page={{ orders.next_page_number }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}&status={{ status_filter }}"
+           class="btn btn-outline" style="font-size:0.85rem; padding:6px 12px;">Next ›</a>
+        <a href="?page={{ orders.paginator.num_pages }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}&status={{ status_filter }}"
+           class="btn btn-outline" style="font-size:0.85rem; padding:6px 12px;">Last »</a>
+        {% endif %}
+
+        <span style="color:var(--muted); font-size:0.85rem; margin-left:8px;">
+            Page {{ orders.number }} of {{ orders.paginator.num_pages }}
+        </span>
+    </div>
+    {% endif %}
+
+</div>
+
+{% if status_filter == 'waiting' %}
+<script>
+(function() {
+    const selectAllBox   = document.getElementById('selectAllBox');
+    const markBtn        = document.getElementById('markDeliveredBtn');
+    const countSpan       = document.getElementById('selectedCount');
+    const statusMsg       = document.getElementById('bulkStatusMsg');
+
+    function getCheckboxes() {
+        return Array.from(document.querySelectorAll('.orderCheckbox'));
+    }
+
+    function updateButtonState() {
+        const checked = getCheckboxes().filter(cb => cb.checked);
+        countSpan.textContent = checked.length;
+        markBtn.disabled = checked.length === 0;
+    }
+
+    if (selectAllBox) {
+        selectAllBox.addEventListener('change', function() {
+            getCheckboxes().forEach(cb => { cb.checked = selectAllBox.checked; });
+            updateButtonState();
+        });
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList && e.target.classList.contains('orderCheckbox')) {
+            updateButtonState();
+        }
+    });
+
+    if (markBtn) {
+        markBtn.addEventListener('click', async function() {
+            const checked = getCheckboxes().filter(cb => cb.checked).map(cb => cb.value);
+            if (checked.length === 0) return;
+
+            markBtn.disabled = true;
+            statusMsg.textContent = 'Updating...';
+
+            const form = new FormData();
+            checked.forEach(id => form.append('order_ids', id));
+
+            try {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+                const res = await fetch('/agent/orders/bulk-mark-delivered/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken },
+                    body: form,
+                });
+                const data = await res.json();
+                statusMsg.textContent = `Updated ${data.updated} order(s).` +
+                    (data.skipped_not_waiting ? ` Skipped ${data.skipped_not_waiting} (not waiting).` : '');
+                setTimeout(() => window.location.reload(), 1200);
+            } catch (err) {
+                statusMsg.textContent = 'Error updating orders. Please try again.';
+                markBtn.disabled = false;
+            }
+        });
+    }
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}AFA Bundle — Agent{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
+            <h1 class="page-title" style="margin-bottom:0;">AFA Bundle — New Order</h1>
+            <a href="/afa/apply/" class="btn btn-primary">
+                <i class="fa fa-plus"></i> New Order
+            </a>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% if applications %}
+        <div class="card table-wrap">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                <p class="section-title" style="margin:0;"><i class="fa fa-id-card"></i> Your Applications</p>
+                <span class="badge badge-info">{{ applications|length }} Total</span>
+            </div>
+            <table style="min-width:750px;">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Phone</th>
+                        <th>Ghana Card</th>
+                        <th>Date of Birth</th>
+                        <th>Location</th>
+                        <th>Region</th>
+                        <th>Status</th>
+                        <th>Date Applied</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td><strong>{{ app.full_name }}</strong></td>
+                        <td>{{ app.phone_number }}</td>
+                        <td><code style="font-size:0.8rem;">{{ app.ghana_card }}</code></td>
+                        <td>{{ app.date_of_birth }}</td>
+                        <td>{{ app.location }}</td>
+                        <td>{{ app.region }}</td>
+                        <td>
+                            <span class="badge
+                                {% if app.status == 'pending' %}badge-warning
+                                {% elif app.status == 'processing' %}badge-info
+                                {% else %}badge-success{% endif %}">
+                                {{ app.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="color:var(--muted); font-size:0.85rem;">
+                            {{ app.created_at|date:"M d, Y H:i" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% else %}
+        <div class="card" style="text-align:center; padding:48px 24px;">
+            <div style="width:64px; height:64px; border-radius:50%; background:rgba(0,200,83,0.1); display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
+                <i class="fa fa-id-card" style="font-size:1.5rem; color:var(--primary);"></i>
+            </div>
+            <h3 style="font-family:'Syne',sans-serif; margin-bottom:8px;">No Applications Yet</h3>
+            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:24px;">
+                You haven't submitted any AFA bundle applications yet.
+            </p>
+            <a href="/afa/apply/" class="btn btn-primary">
+                <i class="fa fa-plus"></i> Place Order
+            </a>
+        </div>
+        {% endif %}
+
+    <!-- paystack integration --><!-- wallet deduction with confirm --><!-- debt confirm logic --></main>
+</div>
+{% endblock %}

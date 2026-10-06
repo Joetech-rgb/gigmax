@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}My Orders - SK Plug{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+        <h1 class="page-title">My Orders</h1>
+
+        <!-- Filter form -->
+        <form method="get" class="card" style="margin-bottom:20px;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <input type="text" name="search" value="{{ search }}" class="form-control"
+                       placeholder="Search by number..." style="flex:1; min-width:160px;">
+                <input type="date" name="date_from" value="{{ date_from }}" class="form-control" style="width:160px;">
+                <input type="date" name="date_to"   value="{{ date_to }}"   class="form-control" style="width:160px;">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                {% if search or date_from or date_to %}
+                <a href="/agent/orders/" class="btn btn-secondary">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- Results summary -->
+        <div style="margin-bottom:12px; color:var(--muted); font-size:0.875rem;">
+            {% if orders.paginator.count == 0 %}
+                No orders found.
+            {% else %}
+                Showing {{ orders.start_index }}–{{ orders.end_index }} of {{ orders.paginator.count }} order{{ orders.paginator.count|pluralize }}
+                {% if search or date_from or date_to %}(filtered){% endif %}
+            {% endif %}
+        </div>
+
+        <!-- Table -->
+        <div class="card table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Network</th>
+                        <th>Recipient</th>
+                        <th>GB</th>
+                        <th>Status</th>
+                        <th>Price</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in orders %}
+                    <tr>
+                        <td>
+                            <code>{{ o.order_id }}</code>
+                            {% if o.source == 'generated_link' %}
+                            <span class="badge badge-info" style="font-size:0.7rem; margin-left:4px;">GL</span>
+                            {% endif %}
+                            {% if o.source == 'api' %}
+                            <span class="badge badge-muted" style="font-size:0.7rem; margin-left:4px;">API</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge
+                                {% if o.network == 'MTN' %}badge-warning
+                                {% elif o.network == 'TELECEL' %}badge-success
+                                {% else %}badge-info{% endif %}"
+                                style="font-size:0.75rem;">
+                                {{ o.network }}
+                            </span>
+                        </td>
+                        <td><strong>{{ o.recipient }}</strong></td>
+                        <td>
+                            {% if o.gb_package %}
+                                {{ o.gb_package.gb_size|floatformat:0 }}GB
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge
+                                {% if o.status == 'delivered' %}badge-success
+                                {% elif o.status == 'processing' %}badge-warning
+                                {% elif o.status == 'failed' %}badge-danger
+                                {% else %}badge-muted{% endif %}">
+                                {{ o.get_status_display }}
+                            </span>
+                        </td>
+                        <td>GHS {{ o.price_paid }}</td>
+                        <td style="color:var(--muted); font-size:0.85rem; white-space:nowrap;">
+                            {{ o.created_at|date:"d M Y H:i" }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align:center; color:var(--muted); padding:40px;">
+                            No orders found.
+                            {% if search or date_from or date_to %}
+                            <br><a href="/agent/orders/" style="color:var(--primary); font-size:0.85rem;">Clear filters</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if orders.has_other_pages %}
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:24px; flex-wrap:wrap;">
+
+            {% if orders.has_previous %}
+            <a href="?page=1&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}"
+               class="btn btn-secondary" style="font-size:0.85rem; padding:6px 12px;">« First</a>
+            <a href="?page={{ orders.previous_page_number }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}"
+               class="btn btn-secondary" style="font-size:0.85rem; padding:6px 12px;">‹ Prev</a>
+            {% endif %}
+
+            <!-- Page numbers (show window of 5 around current) -->
+            {% for num in orders.paginator.page_range %}
+                {% if num >= orders.number|add:"-2" and num <= orders.number|add:"2" %}
+                    {% if num == orders.number %}
+                    <span class="btn btn-primary" style="font-size:0.85rem; padding:6px 12px; cursor:default;">{{ num }}</span>
+                    {% else %}
+                    <a href="?page={{ num }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}"
+                       class="btn btn-secondary" style="font-size:0.85rem; padding:6px 12px;">{{ num }}</a>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if orders.has_next %}
+            <a href="?page={{ orders.next_page_number }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}"
+               class="btn btn-secondary" style="font-size:0.85rem; padding:6px 12px;">Next ›</a>
+            <a href="?page={{ orders.paginator.num_pages }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}"
+               class="btn btn-secondary" style="font-size:0.85rem; padding:6px 12px;">Last »</a>
+            {% endif %}
+
+            <span style="color:var(--muted); font-size:0.85rem; margin-left:8px;">
+                Page {{ orders.number }} of {{ orders.paginator.num_pages }}
+            </span>
+        </div>
+        {% endif %}
+
+    </main>
+</div>
+{% endblock %}

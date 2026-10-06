@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}Buy Data — Agent{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+
+        <h1 class="page-title">Place Order</h1>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% if not mtn_enabled %}
+        <div style="background:rgba(255,109,0,0.1); border:1px solid rgba(255,109,0,0.4);
+                    border-radius:10px; padding:12px 16px; margin-bottom:20px;
+                    display:flex; align-items:center; gap:10px; max-width:560px;">
+            <span style="font-size:1.2rem;">⚠️</span>
+            <span style="font-size:0.88rem; color:#FF6D00; font-weight:600;">
+                MTN orders are temporarily unavailable. Please use Telecel or AT.
+            </span>
+        </div>
+        {% endif %}
+
+        <div style="max-width:560px;">
+            <div class="card">
+                <p class="section-title"><i class="fa fa-cart-plus"></i> Single Order</p>
+
+                <form method="POST" action="{% url 'agent_place_single' %}" id="orderForm">
+                    {% csrf_token %}
+
+                    <div class="form-group">
+                        <label>Select Network</label>
+                        <select name="network" id="network" class="form-control" required>
+                            <option value="">— Choose Network —</option>
+                            <option value="MTN">MTN</option>
+                            <option value="TELECEL">Telecel</option>
+                            <option value="AT_NOEXPIRY">AT Non-Expiry</option>
+                            <option value="AT_EXPIRY">AT Expiry</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="packageGroup" style="display:none;">
+                        <label>Select Package</label>
+                        <select name="package_id" id="package" class="form-control" required>
+                            <option value="">— Choose Package —</option>
+                        </select>
+                    </div>
+
+                    <script id="packageData" type="application/json">
+                        [{% for package in all_packages %}
+                        {
+                            "id":      "{{ package.id }}",
+                            "network": "{{ package.network }}",
+                            "gb":      "{{ package.gb_size|floatformat:0 }}",
+                            "price":   "{{ package.agent_price }}"
+                        }{% if not forloop.last %},{% endif %}
+                        {% endfor %}]
+                    </script>
+
+                    <div class="form-group" id="recipientGroup" style="display:none;">
+                        <label>Recipient Number</label>
+                        <input type="tel" name="recipient" id="recipient"
+                               class="form-control"
+                               placeholder="024XXXXXXX"
+                               maxlength="10"
+                               required>
+                        <small id="phoneError" style="color:#f44336; display:none;">
+                            Enter a valid 10-digit Ghana number (digits only).
+                        </small>
+                    </div>
+
+                    <div id="orderSummary" style="display:none; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:20px;">
+                        <p class="section-title" style="margin-bottom:12px;"><i class="fa fa-receipt"></i> Order Summary</p>
+                        <div style="display:flex; flex-direction:column; gap:8px; font-size:0.9rem;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span style="color:var(--muted);">Network</span>
+                                <strong id="sumNetwork">—</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between;">
+                                <span style="color:var(--muted);">Package</span>
+                                <strong id="sumPackage">—</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between;">
+                                <span style="color:var(--muted);">Recipient</span>
+                                <strong id="sumRecipient">—</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border); padding-top:8px; margin-top:4px;">
+                                <span style="color:var(--muted);">Amount</span>
+                                <strong id="sumAmount" style="color:var(--primary); font-size:1rem;">—</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; font-size:0.85rem; color:var(--muted);">
+                        <span><i class="fa fa-wallet"></i> Wallet Balance</span>
+                        <strong style="color:var(--primary);">GHS {{ user.wallet_balance|floatformat:2 }}</strong>
+                    </div>
+
+                    <button type="button" class="btn btn-primary btn-full" id="submitBtn" disabled onclick="confirmOrder()">
+                        <i class="fa fa-paper-plane"></i> Place Order
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+{# ── MTN Toast ── #}
+<div id="mtn-toast"
+     style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+            background:#FF6D00; color:#fff; padding:12px 24px; border-radius:12px;
+            font-weight:700; font-size:0.9rem; z-index:9999;
+            box-shadow:0 4px 16px rgba(0,0,0,0.3); transition:opacity 0.3s;">
+    MTN orders are temporarily unavailable
+</div>
+
+<script>
+const MTN_ENABLED  = {{ mtn_enabled|yesno:"true,false" }};
+const allPackages  = JSON.parse(document.getElementById('packageData').textContent);
+
+const networkSel     = document.getElementById('network');
+const packageSel     = document.getElementById('package');
+const recipientIn    = document.getElementById('recipient');
+const packageGroup   = document.getElementById('packageGroup');
+const recipientGroup = document.getElementById('recipientGroup');
+const summary        = document.getElementById('orderSummary');
+const sumNetwork     = document.getElementById('sumNetwork');
+const sumPackage     = document.getElementById('sumPackage');
+const sumRecipient   = document.getElementById('sumRecipient');
+const sumAmount      = document.getElementById('sumAmount');
+const submitBtn      = document.getElementById('submitBtn');
+const phoneError     = document.getElementById('phoneError');
+
+function showMtnToast() {
+    const t = document.getElementById('mtn-toast');
+    t.style.display = 'block';
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => {
+        t.style.opacity = '0';
+        setTimeout(() => { t.style.display = 'none'; }, 300);
+    }, 3000);
+}
+
+networkSel.addEventListener('change', function () {
+    const net = this.value;
+
+    // ── MTN block ──────────────────────────────────────────────────────
+    if (net === 'MTN' && !MTN_ENABLED) {
+        this.value = '';
+        showMtnToast();
+        packageGroup.style.display   = 'none';
+        recipientGroup.style.display = 'none';
+        summary.style.display        = 'none';
+        submitBtn.disabled           = true;
+        resetSummary();
+        return;
+    }
+    // ───────────────────────────────────────────────────────────────────
+
+    packageSel.innerHTML = '<option value="">— Choose Package —</option>';
+    recipientGroup.style.display = 'none';
+    summary.style.display        = 'none';
+    submitBtn.disabled           = true;
+    resetSummary();
+
+    if (!net) {
+        packageGroup.style.display = 'none';
+        return;
+    }
+
+    const filtered = allPackages.filter(p => p.network === net);
+    filtered.forEach(p => {
+        const opt       = document.createElement('option');
+        opt.value       = p.id;
+        const price     = parseFloat(p.price);
+        opt.textContent = p.gb + 'GB — GHS ' + (isNaN(price) ? p.price : price.toFixed(2));
+        opt.dataset.gb    = p.gb;
+        opt.dataset.price = p.price;
+        packageSel.appendChild(opt);
+    });
+
+    packageGroup.style.display = 'block';
+    sumNetwork.textContent = this.options[this.selectedIndex].text;
+});
+
+packageSel.addEventListener('change', function () {
+    if (!this.value) {
+        recipientGroup.style.display = 'none';
+        sumPackage.textContent = '—';
+        sumAmount.textContent  = '—';
+        updateSummary();
+        return;
+    }
+
+    const opt   = this.options[this.selectedIndex];
+    const price = parseFloat(opt.dataset.price);
+    sumPackage.textContent = opt.dataset.gb + 'GB';
+    sumAmount.textContent  = isNaN(price) ? '—' : 'GHS ' + price.toFixed(2);
+    recipientGroup.style.display = 'block';
+    updateSummary();
+});
+
+recipientIn.addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '');
+    const valid = /^0[0-9]{9}$/.test(this.value);
+    phoneError.style.display = this.value.length > 0 && !valid ? 'block' : 'none';
+    updateSummary();
+});
+
+function resetSummary() {
+    sumNetwork.textContent   = '—';
+    sumPackage.textContent   = '—';
+    sumRecipient.textContent = '—';
+    sumAmount.textContent    = '—';
+}
+
+function updateSummary() {
+    const net        = networkSel.value;
+    const pkg        = packageSel.value;
+    const rec        = recipientIn.value;
+    const validPhone = /^0[0-9]{9}$/.test(rec);
+
+    if (net && pkg && validPhone) {
+        sumNetwork.textContent   = networkSel.options[networkSel.selectedIndex].text;
+        sumRecipient.textContent = rec;
+        summary.style.display    = 'block';
+        submitBtn.disabled       = false;
+    } else {
+        summary.style.display = 'none';
+        submitBtn.disabled    = true;
+    }
+}
+
+function confirmOrder() {
+    const pkg = sumPackage.textContent;
+    const rec = sumRecipient.textContent;
+    const amt = sumAmount.textContent;
+    openConfirm(
+        'Confirm order? ' + pkg + ' to ' + rec + ' for ' + amt,
+        function () { document.getElementById('orderForm').submit(); }
+    );
+}
+</script>
+{% endblock %}

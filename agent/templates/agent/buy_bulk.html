@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --ink: #0f0f0f;
+    --paper: #f7f5f0;
+    --accent: #e63000;
+    --accent2: #ff7a00;
+    --green: #00a550;
+    --amber: #f5a623;
+    --blue: #0066cc;
+    --border: #d0cdc6;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+    --radius: 4px;
+  }
+
+  .bo-wrap { font-family: var(--sans); color: var(--ink); max-width: 780px; margin: 0 auto; padding: 32px 16px 64px; }
+
+  .bo-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 28px; }
+  .bo-title { font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; }
+  .bo-badge { font-family: var(--mono); font-size: 0.62rem; font-weight: 700; background: var(--accent); color: #fff; padding: 3px 8px; border-radius: 2px; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* Network selector */
+  .bo-network { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+  .net-btn { font-family: var(--mono); font-size: 0.78rem; font-weight: 700; padding: 8px 18px; border: 1.5px solid var(--border); border-radius: var(--radius); background: #fff; cursor: pointer; transition: all 0.15s; letter-spacing: 0.06em; text-transform: uppercase; }
+  .net-btn:hover { border-color: var(--ink); }
+  .net-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .net-btn[data-net="mtn"].active { background: #ffcb00; color: #000; border-color: #ffcb00; }
+  .net-btn[data-net="vodafone"].active { background: #e60000; color: #fff; border-color: #e60000; }
+  .net-btn[data-net="airteltigo"].active { background: #ef3e23; color: #fff; border-color: #ef3e23; }
+
+  /* Textarea */
+  .bo-input-wrap { position: relative; margin-bottom: 0; }
+  .bo-textarea { font-family: var(--mono); font-size: 0.88rem; line-height: 1.9; width: 100%; min-height: 220px; padding: 16px; border: 1.5px solid var(--border); border-radius: var(--radius); resize: vertical; background: #fff; color: var(--ink); outline: none; box-sizing: border-box; transition: border-color 0.15s; }
+  .bo-textarea:focus { border-color: var(--ink); }
+  .bo-textarea::placeholder { color: #bbb; }
+  .bo-line-count { position: absolute; top: 12px; right: 14px; font-family: var(--mono); font-size: 0.7rem; color: #bbb; pointer-events: none; }
+
+  /* Stats bar */
+  .bo-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--border); border: 1.5px solid var(--border); border-radius: var(--radius); margin-top: 12px; overflow: hidden; }
+  .bo-stat { background: #fff; padding: 14px 18px; }
+  .bo-stat-label { font-family: var(--mono); font-size: 0.65rem; color: #999; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+  .bo-stat-val { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; }
+  .bo-stat-val.accent { color: var(--accent); }
+
+  /* Validation list */
+  .bo-validation { margin-top: 16px; max-height: 260px; overflow-y: auto; display: none; }
+  .bo-vrow { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: var(--radius); margin-bottom: 3px; font-family: var(--mono); font-size: 0.8rem; }
+  .bo-vrow.valid { background: #f0faf5; }
+  .bo-vrow.invalid { background: #fff4f2; }
+  .bo-vrow .vicon { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; flex-shrink: 0; }
+  .bo-vrow.valid .vicon { background: var(--green); color: #fff; }
+  .bo-vrow.invalid .vicon { background: var(--accent); color: #fff; }
+  .bo-vrow .vnum { flex: 1; color: var(--ink); }
+  .bo-vrow.invalid .vnum { color: #c0392b; text-decoration: line-through; }
+  .bo-vrow .vgb { font-weight: 700; color: var(--ink); min-width: 50px; text-align: right; }
+  .bo-vrow .vprice { color: #888; min-width: 70px; text-align: right; }
+  .bo-vrow .verr { color: var(--accent); font-size: 0.72rem; flex: 1; text-align: right; }
+
+  /* Payment box — hidden until valid orders exist */
+  .bo-payment { display: none; border: 2px solid var(--ink); border-radius: var(--radius); background: #fff; margin-top: 20px; overflow: hidden; }
+  .bo-payment-header { background: var(--ink); color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .bo-payment-header span { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7; }
+  .bo-payment-header strong { font-size: 1.1rem; font-weight: 800; }
+  .bo-payment-body { padding: 18px 20px; }
+
+  /* Breakdown rows */
+  .bo-breakdown { margin-bottom: 16px; }
+  .bo-brow { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 0.9rem; }
+  .bo-brow:last-child { border-bottom: none; }
+  .bo-brow-label { display: flex; align-items: center; gap: 8px; color: #555; }
+  .bo-brow-label .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-wallet { background: var(--green); }
+  .dot-debt { background: var(--amber); }
+  .dot-paystack { background: var(--blue); }
+  .bo-brow-amt { font-family: var(--mono); font-weight: 700; font-size: 0.92rem; }
+  .amt-wallet { color: var(--green); }
+  .amt-debt { color: var(--amber); }
+  .amt-paystack { color: var(--blue); }
+
+  /* CTA button */
+  .bo-cta { width: 100%; padding: 16px; font-family: var(--sans); font-size: 1rem; font-weight: 700; border: none; border-radius: var(--radius); cursor: pointer; letter-spacing: 0.02em; transition: all 0.15s; }
+  .bo-cta:active { transform: scale(0.98); }
+  .bo-cta.wallet-only { background: var(--green); color: #fff; }
+  .bo-cta.wallet-only:hover { background: #008c44; }
+  .bo-cta.debt { background: var(--amber); color: #fff; }
+  .bo-cta.debt:hover { background: #d4891a; }
+  .bo-cta.paystack { background: var(--blue); color: #fff; }
+  .bo-cta.paystack:hover { background: #004fa3; }
+  .bo-cta.mixed { background: var(--ink); color: #fff; }
+  .bo-cta.mixed:hover { background: #333; }
+
+  .bo-wallet-note { font-family: var(--mono); font-size: 0.72rem; color: #999; text-align: center; margin-top: 10px; }
+  .bo-wallet-note b { color: var(--ink); }
+
+  /* Hint */
+  .bo-hint { font-family: var(--mono); font-size: 0.72rem; color: #bbb; margin-top: 10px; line-height: 1.7; }
+  .bo-hint span { color: var(--accent); font-weight: 700; }
+</style>
+
+<div class="bo-wrap">
+  <div class="bo-header">
+    <h2 class="bo-title">Bulk Order</h2>
+    <div class="bo-badge">&#x1F525; Extreme Heat</div>
+  </div>
+
+  <!-- Network selector -->
+  <div class="bo-network">
+    <button class="net-btn active" data-net="mtn">MTN</button>
+    <button class="net-btn" data-net="vodafone">Vodafone</button>
+    <button class="net-btn" data-net="airteltigo">AirtelTigo</button>
+  </div>
+
+  <!-- Textarea input -->
+  <div class="bo-input-wrap">
+    <textarea class="bo-textarea" id="bulk_input"
+      placeholder="0244111222 5&#10;0555999888 10&#10;0201234567 2&#10;&#10;One order per line — number then GB"></textarea>
+    <span class="bo-line-count" id="line_count">0 lines</span>
+  </div>
+
+  <div class="bo-hint">
+    Format: <span>0XXXXXXXXX GB</span> &nbsp;&bull;&nbsp; one per line &nbsp;&bull;&nbsp;
+    Valid GB: <span>{{ valid_gb_list|join:", "|default:"1, 2, 3, 5, 10, 15, 20, 30, 50, 100" }}</span>
+  </div>
+
+  <!-- Stats -->
+  <div class="bo-stats">
+    <div class="bo-stat">
+      <div class="bo-stat-label">Valid Orders</div>
+      <div class="bo-stat-val" id="stat_orders">0</div>
+    </div>
+    <div class="bo-stat">
+      <div class="bo-stat-label">Total GB</div>
+      <div class="bo-stat-val" id="stat_gb">0</div>
+    </div>
+    <div class="bo-stat">
+      <div class="bo-stat-label">Total Amount</div>
+      <div class="bo-stat-val accent" id="stat_amount">GHS 0.00</div>
+    </div>
+  </div>
+
+  <!-- Payment box — auto-pops -->
+  <div class="bo-payment" id="payment_box">
+    <div class="bo-payment-header">
+      <div>
+        <span>Place Order</span><br>
+        <strong id="pay_summary">0 orders &mdash; GHS 0.00</strong>
+      </div>
+      <span id="pay_network_tag" style="font-size:0.85rem; font-weight:700; opacity:1;">MTN</span>
+    </div>
+    <div class="bo-payment-body">
+      <div class="bo-breakdown" id="breakdown_rows"></div>
+      <form method="POST" action="/agent/buy/bulk/submit/" id="placeOrderForm">
+        {% csrf_token %}
+        <input type="hidden" name="network" id="f_network" value="mtn">
+        <div id="f_orders"></div>
+        <button type="submit" class="bo-cta" id="place_btn">Place Orders</button>
+      </form>
+      <p class="bo-wallet-note">
+        Wallet: <b>GHS {{ request.user.wallet_balance|floatformat:2 }}</b>
+        {% if request.user.debt_page_access %} &nbsp;&bull;&nbsp; Debt account active{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <!-- Per-line validation -->
+  <div class="bo-validation" id="validation_list"></div>
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────
+  const PRICE_PER_GB  = {{ price_per_gb|default:5.00 }};
+  const WALLET_BAL    = {{ request.user.wallet_balance|default:0 }};
+  const HAS_DEBT      = {{ request.user.debt_page_access|yesno:"true,false" }};
+  const VALID_GBS     = [{{ valid_gb_list|join:","|default:"1,2,3,5,10,15,20,30,50,100" }}];
+
+  // ── State ───────────────────────────────────────────────
+  let selectedNetwork = 'mtn';
+
+  // ── Network buttons ─────────────────────────────────────
+  document.querySelectorAll('.net-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.net-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedNetwork = btn.dataset.net;
+      document.getElementById('f_network').value = selectedNetwork;
+      document.getElementById('pay_network_tag').textContent = btn.textContent.trim();
+      revalidate();
+    });
+  });
+
+  // ── Validation logic ─────────────────────────────────────
+  function validateLine(line) {
+    const parts = line.trim().split(/[\s,]+/);
+    const phone = parts[0] || '';
+    const gbRaw = parts[1] || '';
+
+    if (!phone) return null; // empty line — skip silently
+
+    // Phone checks
+    if (/[a-zA-Z]/.test(phone))     return { phone, error: 'Number contains letters' };
+    if (!phone.startsWith('0'))      return { phone, error: 'Must start with 0' };
+    if (phone.length < 10)           return { phone, error: 'Too short (need 10 digits)' };
+    if (phone.length > 10)           return { phone, error: 'Too long (max 10 digits)' };
+    if (!/^\d+$/.test(phone))        return { phone, error: 'Non-digit characters in number' };
+
+    // GB checks
+    if (!gbRaw)                      return { phone, error: 'Missing GB value' };
+    if (/[a-zA-Z]/.test(gbRaw.replace(/gb/i, ''))) return { phone, error: 'GB contains letters' };
+    const gb = parseFloat(gbRaw.replace(/[^\d.]/g, ''));
+    if (isNaN(gb) || gb <= 0)        return { phone, error: 'Invalid GB amount' };
+    if (!VALID_GBS.includes(gb))     return { phone, error: `${gb}GB not in package list` };
+
+    return { phone, gb, price: gb * PRICE_PER_GB, valid: true };
+  }
+
+  function revalidate() {
+    const raw   = document.getElementById('bulk_input').value;
+    const lines = raw.split(/\r?\n/);
+
+    document.getElementById('line_count').textContent = lines.filter(l => l.trim()).length + ' lines';
+
+    const results  = lines.map(l => ({ line: l, result: validateLine(l) })).filter(r => r.result !== null);
+    const valids   = results.filter(r => r.result.valid);
+    const invalids = results.filter(r => !r.result.valid);
+
+    const totalGB  = valids.reduce((s, r) => s + r.result.gb, 0);
+    const totalAmt = valids.reduce((s, r) => s + r.result.price, 0);
+
+    // Stats
+    document.getElementById('stat_orders').textContent = valids.length;
+    document.getElementById('stat_gb').textContent     = totalGB + ' GB';
+    document.getElementById('stat_amount').textContent = 'GHS ' + totalAmt.toFixed(2);
+
+    // Validation list
+    const listEl = document.getElementById('validation_list');
+    if (results.length > 0) {
+      listEl.style.display = 'block';
+      listEl.innerHTML = results.map(({ result }) => {
+        if (result.valid) {
+          return `<div class="bo-vrow valid">
+            <div class="vicon">✓</div>
+            <div class="vnum">${result.phone}</div>
+            <div class="vgb">${result.gb}GB</div>
+            <div class="vprice">GHS ${result.price.toFixed(2)}</div>
+          </div>`;
+        } else {
+          return `<div class="bo-vrow invalid">
+            <div class="vicon">✕</div>
+            <div class="vnum">${result.phone || '—'}</div>
+            <div class="verr">${result.error}</div>
+          </div>`;
+        }
+      }).join('');
+    } else {
+      listEl.style.display = 'none';
+      listEl.innerHTML = '';
+    }
+
+    // Payment box
+    const payBox = document.getElementById('payment_box');
+    if (valids.length === 0) {
+      payBox.style.display = 'none';
+      return;
+    }
+
+    payBox.style.display = 'block';
+    document.getElementById('pay_summary').textContent =
+      `${valids.length} order${valids.length > 1 ? 's' : ''} — GHS ${totalAmt.toFixed(2)}`;
+
+    // Build hidden form fields
+    const fOrders = document.getElementById('f_orders');
+    fOrders.innerHTML = valids.map(({ result }) => `
+      <input type="hidden" name="recipients"  value="${result.phone}">
+      <input type="hidden" name="package_ids" value="">
+      <input type="hidden" name="prices"      value="${result.price}">
+    `).join('');
+
+    // ── Payment logic ────────────────────────────────────────
+    let walletUsed   = 0;
+    let debtNeeded   = 0;
+    let paystackNeeded = 0;
+    let btnClass     = 'paystack';
+    let btnText      = 'Pay with Paystack';
+
+    if (WALLET_BAL >= totalAmt) {
+      // Wallet covers everything
+      walletUsed = totalAmt;
+      btnClass   = 'wallet-only';
+      btnText    = `Pay GHS ${totalAmt.toFixed(2)} from Wallet`;
+    } else if (WALLET_BAL > 0 && HAS_DEBT) {
+      // Wallet partial + debt covers rest
+      walletUsed  = WALLET_BAL;
+      debtNeeded  = parseFloat((totalAmt - WALLET_BAL).toFixed(2));
+      btnClass    = 'debt';
+      btnText     = `Place Order — Wallet + Debt`;
+    } else if (WALLET_BAL > 0) {
+      // Wallet partial + Paystack covers rest
+      walletUsed    = WALLET_BAL;
+      paystackNeeded = parseFloat((totalAmt - WALLET_BAL).toFixed(2));
+      btnClass      = 'paystack';
+      btnText       = `Pay GHS ${paystackNeeded.toFixed(2)} via Paystack`;
+    } else if (HAS_DEBT) {
+      // No wallet, debt covers all
+      debtNeeded = totalAmt;
+      btnClass   = 'debt';
+      btnText    = `Place on Debt — GHS ${totalAmt.toFixed(2)}`;
+    } else {
+      // Paystack only
+      paystackNeeded = totalAmt;
+      btnClass       = 'paystack';
+      btnText        = `Pay GHS ${totalAmt.toFixed(2)} via Paystack`;
+    }
+
+    // Breakdown rows
+    let rows = '';
+    if (walletUsed > 0) {
+      rows += `<div class="bo-brow">
+        <div class="bo-brow-label"><div class="dot dot-wallet"></div> Wallet deducted</div>
+        <div class="bo-brow-amt amt-wallet">GHS ${walletUsed.toFixed(2)}</div>
+      </div>`;
+    }
+    if (debtNeeded > 0) {
+      rows += `<div class="bo-brow">
+        <div class="bo-brow-label"><div class="dot dot-debt"></div> Added to debt</div>
+        <div class="bo-brow-amt amt-debt">GHS ${debtNeeded.toFixed(2)}</div>
+      </div>`;
+    }
+    if (paystackNeeded > 0) {
+      rows += `<div class="bo-brow">
+        <div class="bo-brow-label"><div class="dot dot-paystack"></div> Paystack payment</div>
+        <div class="bo-brow-amt amt-paystack">GHS ${paystackNeeded.toFixed(2)}</div>
+      </div>`;
+    }
+    rows += `<div class="bo-brow">
+      <div class="bo-brow-label" style="font-weight:700; color:var(--ink);">Total</div>
+      <div class="bo-brow-amt" style="color:var(--ink);">GHS ${totalAmt.toFixed(2)}</div>
+    </div>`;
+
+    document.getElementById('breakdown_rows').innerHTML = rows;
+
+    const btn = document.getElementById('place_btn');
+    btn.className = 'bo-cta ' + btnClass;
+    btn.textContent = btnText;
+  }
+
+  document.getElementById('bulk_input').addEventListener('input', revalidate);
+  revalidate();
+</script>
+{% endblock %}
+
+

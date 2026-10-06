@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+{% block title %}Notice Board – SK Plug Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+
+        <h1 class="page-title" style="margin-bottom:28px;">📢 Notice Board</h1>
+
+        <!-- Django messages -->
+        {% if messages %}
+        <div style="margin-bottom:20px;">
+            {% for msg in messages %}
+            <div style="padding:12px 18px; border-radius:8px; margin-bottom:8px; font-size:0.9rem;
+                        background:{% if msg.tags == 'success' %}rgba(0,200,83,0.12){% elif msg.tags == 'error' %}rgba(244,67,54,0.12){% else %}rgba(41,121,255,0.12){% endif %};
+                        border:1px solid {% if msg.tags == 'success' %}rgba(0,200,83,0.3){% elif msg.tags == 'error' %}rgba(244,67,54,0.3){% else %}rgba(41,121,255,0.3){% endif %};
+                        color:{% if msg.tags == 'success' %}#00c853{% elif msg.tags == 'error' %}#f44336{% else %}#2979ff{% endif %};">
+                {{ msg }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- News Ticker -->
+        {% if notices %}
+        <div style="margin-bottom:28px; border-radius:10px; overflow:hidden; border:1px solid var(--border,#333); box-shadow:0 4px 18px rgba(0,0,0,0.2);">
+            <div style="display:flex; align-items:stretch;">
+
+                <!-- LIVE label -->
+                <div style="background:#e53935; color:#fff; font-size:0.72rem; font-weight:800;
+                            padding:0 16px; display:flex; align-items:center; gap:6px;
+                            text-transform:uppercase; letter-spacing:0.1em; flex-shrink:0;
+                            white-space:nowrap;">
+                    <span style="width:7px; height:7px; background:#fff; border-radius:50%;
+                                 display:inline-block; animation:blink 1s infinite;"></span>
+                    LIVE
+                </div>
+
+                <!-- Ticker track -->
+                <div style="flex:1; overflow:hidden; background:rgba(20,20,35,0.95); position:relative; height:42px;">
+                    <div class="ticker-track" style="display:flex; align-items:center; height:100%; white-space:nowrap;">
+                        <div class="ticker-content" style="display:inline-flex; align-items:center; gap:0; animation:ticker-scroll 40s linear infinite;">
+                            {% for n in notices %}
+                            {% if n.is_visible %}
+                            <span style="display:inline-flex; align-items:center; gap:8px; padding:0 32px; font-size:0.88rem; color:#fff;">
+                                <span style="font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:20px; flex-shrink:0;
+                                    background:{% if n.priority == 'urgent' %}#b71c1c{% elif n.priority == 'warning' %}#e65100{% elif n.priority == 'success' %}#1b5e20{% else %}#0d47a1{% endif %};">
+                                    {% if n.priority == 'urgent' %}🚨{% elif n.priority == 'warning' %}⚠️{% elif n.priority == 'success' %}✅{% else %}📢{% endif %}
+                                    {{ n.title }}
+                                </span>
+                                <span style="color:rgba(255,255,255,0.85);">{{ n.message }}</span>
+                                <span style="color:rgba(255,255,255,0.25); font-size:1.2rem; margin-left:16px;">◆</span>
+                            </span>
+                            {% endif %}
+                            {% endfor %}
+                            <!-- Duplicate for seamless loop -->
+                            {% for n in notices %}
+                            {% if n.is_visible %}
+                            <span style="display:inline-flex; align-items:center; gap:8px; padding:0 32px; font-size:0.88rem; color:#fff;">
+                                <span style="font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:20px; flex-shrink:0;
+                                    background:{% if n.priority == 'urgent' %}#b71c1c{% elif n.priority == 'warning' %}#e65100{% elif n.priority == 'success' %}#1b5e20{% else %}#0d47a1{% endif %};">
+                                    {% if n.priority == 'urgent' %}🚨{% elif n.priority == 'warning' %}⚠️{% elif n.priority == 'success' %}✅{% else %}📢{% endif %}
+                                    {{ n.title }}
+                                </span>
+                                <span style="color:rgba(255,255,255,0.85);">{{ n.message }}</span>
+                                <span style="color:rgba(255,255,255,0.25); font-size:1.2rem; margin-left:16px;">◆</span>
+                            </span>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Create Notice Form -->
+        <div class="card" style="margin-bottom:32px;">
+            <p class="section-title" style="margin-bottom:20px;">
+                <i class="fa fa-pen-to-square"></i> Post a New Notice
+            </p>
+
+            <form method="post" action="/admin-panel/notices/">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px;">
+                            Title <span style="color:#f44336;">*</span>
+                        </label>
+                        <input type="text" name="title"
+                               placeholder="e.g. MTN prices updated, System maintenance…"
+                               required maxlength="150"
+                               style="width:100%; padding:10px 14px; border-radius:8px;
+                                      border:1px solid var(--border,#333);
+                                      background:var(--surface2,#2a2a3e); color:inherit;
+                                      font-size:0.9rem; box-sizing:border-box;">
+                    </div>
+
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px;">
+                            Priority
+                        </label>
+                        <select name="priority"
+                                style="width:100%; padding:10px 14px; border-radius:8px;
+                                       border:1px solid var(--border,#333);
+                                       background:var(--surface2,#2a2a3e); color:inherit;
+                                       font-size:0.9rem; box-sizing:border-box;">
+                            <option value="info">📢 Info — General announcement</option>
+                            <option value="success">✅ Success — Good news</option>
+                            <option value="warning">⚠️ Warning — Agents should take note</option>
+                            <option value="urgent">🚨 Urgent — Action required</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px;">
+                        Message <span style="color:#f44336;">*</span>
+                    </label>
+                    <textarea name="message" rows="4" required
+                              placeholder="Type your announcement here. Agents will see this on their dashboard…"
+                              style="width:100%; padding:10px 14px; border-radius:8px;
+                                     border:1px solid var(--border,#333);
+                                     background:var(--surface2,#2a2a3e); color:inherit;
+                                     font-size:0.9rem; box-sizing:border-box; resize:vertical;
+                                     line-height:1.6;"></textarea>
+                </div>
+
+                <div style="display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap;">
+                    <div>
+                        <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px;">
+                            Expires At
+                            <span style="font-weight:400; color:var(--muted); font-size:0.8rem;">
+                                (optional — leave blank to keep it live forever)
+                            </span>
+                        </label>
+                        <input type="datetime-local" name="expires_at"
+                               style="padding:10px 14px; border-radius:8px;
+                                      border:1px solid var(--border,#333);
+                                      background:var(--surface2,#2a2a3e); color:inherit;
+                                      font-size:0.9rem;">
+                    </div>
+
+                    <button type="submit"
+                            style="padding:11px 32px; border-radius:8px; border:none;
+                                   background:var(--primary,#00c853); color:#fff;
+                                   font-weight:700; font-size:0.9rem; cursor:pointer;
+                                   display:flex; align-items:center; gap:8px;">
+                        <i class="fa fa-bullhorn"></i> Publish Notice
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- All Notices Table -->
+        <div class="card">
+            <p class="section-title" style="margin-bottom:20px;">
+                <i class="fa fa-list"></i> All Notices
+                <span style="font-size:0.8rem; color:var(--muted); font-weight:400; margin-left:8px;">
+                    ({{ notices|length }} total)
+                </span>
+            </p>
+
+            {% if notices %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:110px;">Priority</th>
+                            <th>Title</th>
+                            <th>Message</th>
+                            <th style="width:80px;">Status</th>
+                            <th style="width:110px;">Posted</th>
+                            <th style="width:110px;">Expires</th>
+                            <th style="width:140px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for n in notices %}
+                        <tr style="opacity:{% if n.is_visible %}1{% else %}0.5{% endif %};">
+
+                            <!-- Priority badge -->
+                            <td>
+                                {% if n.priority == 'urgent' %}
+                                <span style="background:#b71c1c; color:#fff; padding:3px 10px;
+                                             border-radius:20px; font-size:0.75rem; font-weight:700;
+                                             white-space:nowrap;">🚨 Urgent</span>
+                                {% elif n.priority == 'warning' %}
+                                <span style="background:#e65100; color:#fff; padding:3px 10px;
+                                             border-radius:20px; font-size:0.75rem; font-weight:700;
+                                             white-space:nowrap;">⚠️ Warning</span>
+                                {% elif n.priority == 'success' %}
+                                <span style="background:#1b5e20; color:#fff; padding:3px 10px;
+                                             border-radius:20px; font-size:0.75rem; font-weight:700;
+                                             white-space:nowrap;">✅ Success</span>
+                                {% else %}
+                                <span style="background:#0d47a1; color:#fff; padding:3px 10px;
+                                             border-radius:20px; font-size:0.75rem; font-weight:700;
+                                             white-space:nowrap;">📢 Info</span>
+                                {% endif %}
+                            </td>
+
+                            <td><strong style="font-size:0.9rem;">{{ n.title }}</strong></td>
+
+                            <td style="font-size:0.85rem; color:var(--muted); max-width:280px;">
+                                {{ n.message|truncatechars:90 }}
+                            </td>
+
+                            <!-- Status -->
+                            <td>
+                                {% if n.is_visible %}
+                                <span style="color:#00c853; font-weight:700; font-size:0.85rem;">● Live</span>
+                                {% elif not n.is_active %}
+                                <span style="color:var(--muted); font-size:0.85rem;">⏸ Paused</span>
+                                {% else %}
+                                <span style="color:#f44336; font-size:0.85rem;">✕ Expired</span>
+                                {% endif %}
+                            </td>
+
+                            <td style="font-size:0.8rem; color:var(--muted);">
+                                {{ n.created_at|date:"d M Y" }}<br>
+                                <span style="font-size:0.75rem;">{{ n.created_at|date:"H:i" }}</span>
+                            </td>
+
+                            <td style="font-size:0.8rem; color:var(--muted);">
+                                {% if n.expires_at %}
+                                    {{ n.expires_at|date:"d M Y" }}<br>
+                                    <span style="font-size:0.75rem;">{{ n.expires_at|date:"H:i" }}</span>
+                                {% else %}
+                                    <span style="color:var(--muted);">Never</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Actions -->
+                            <td>
+                                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                    <form method="post" action="/admin-panel/notices/" style="margin:0;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="toggle">
+                                        <input type="hidden" name="notice_id" value="{{ n.pk }}">
+                                        <button type="submit"
+                                                style="padding:5px 12px; border-radius:6px; font-size:0.8rem;
+                                                       border:1px solid var(--border,#333); cursor:pointer;
+                                                       background:transparent; color:inherit; white-space:nowrap;">
+                                            {% if n.is_active %}⏸ Pause{% else %}▶ Activate{% endif %}
+                                        </button>
+                                    </form>
+
+                                    <form method="post" action="/admin-panel/notices/" style="margin:0;"
+                                          onsubmit="return confirm('Delete this notice permanently?')">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="notice_id" value="{{ n.pk }}">
+                                        <button type="submit"
+                                                style="padding:5px 12px; border-radius:6px; font-size:0.8rem;
+                                                       border:1px solid rgba(244,67,54,0.5); color:#f44336;
+                                                       background:transparent; cursor:pointer; white-space:nowrap;">
+                                            🗑 Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% else %}
+            <div style="text-align:center; padding:48px 0; color:var(--muted);">
+                <div style="font-size:2.5rem; margin-bottom:12px;">📭</div>
+                <p style="font-size:0.95rem; margin:0;">No notices yet. Post one above and agents will see it immediately.</p>
+            </div>
+            {% endif %}
+        </div>
+
+    </main>
+</div>
+
+<style>
+@keyframes ticker-scroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+}
+.ticker-content:hover {
+    animation-play-state: paused;
+}
+</style>
+
+{% endblock %}

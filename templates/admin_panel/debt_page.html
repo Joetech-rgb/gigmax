@@ -1,0 +1,207 @@
+﻿{% extends "base.html" %}
+{% block title %}Debt Page - Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+        <h1 class="page-title">Debt Page</h1>
+
+        <div class="card" style="margin-bottom:24px;">
+            <p class="section-title">Add Agent to Debt List</p>
+            <form method="GET" style="display:flex; gap:12px; flex-wrap:wrap;">
+                <input type="text" name="add_search" value="{{ add_search }}"
+                       class="form-control" placeholder="Search agent by name or phone..." style="flex:1; min-width:200px;">
+                <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i> Search</button>
+            </form>
+            {% if add_results %}
+            <div style="margin-top:16px;">
+                {% for agent in add_results %}
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border);">
+                    <div>
+                        <strong>{{ agent.full_name }}</strong>
+                        <span style="color:var(--muted); font-size:0.85rem; margin-left:8px;">{{ agent.phone_number }}</span>
+                        <span class="badge {% if agent.debt_page_access %}badge-success{% else %}badge-muted{% endif %}" style="margin-left:8px;">
+                            {% if agent.debt_page_access %}On Debt List{% else %}Not on Debt List{% endif %}
+                        </span>
+                    </div>
+                    {% if not agent.debt_page_access %}
+                    <form method="POST" action="/admin-panel/debt/add-agent/">
+                        {% csrf_token %}
+                        <input type="hidden" name="user_id" value="{{ agent.pk }}">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-plus"></i> Add to Debt</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% elif add_search %}
+            <p style="color:var(--muted); margin-top:12px; font-size:0.9rem;">No agents found for "{{ add_search }}"</p>
+            {% endif %}
+        </div>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        <div style="display:flex;gap:16px;margin-bottom:20px;">
+            <div class="card" style="flex:1;padding:20px;text-align:center;">
+                <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Total Outstanding Debt</div>
+                <div style="font-size:28px;font-weight:700;color:var(--danger);">GHS {{ total_debt|floatformat:2 }}</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Combined Across All Agents</div>
+            </div>
+        </div>
+        <div class="card table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Phone</th>
+                        <th>Outstanding Debt</th>
+                        <th>Debt Access</th>
+                        <th>API</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for agent in agents %}
+                    <tr>
+                        <td><strong>{{ agent.full_name }}</strong></td>
+                        <td>{{ agent.phone_number }}</td>
+                        <td>
+                            <span style="color:var(--danger); font-weight:700;">
+                                GHS {{ agent.debt_balance }}
+                            </span>
+                        </td>
+                        <td>
+                            <form method="POST" action="/admin-panel/debt/{{ agent.pk }}/toggle-access/" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm {% if agent.debt_page_access %}btn-danger{% else %}btn-primary{% endif %}">
+                                    {% if agent.debt_page_access %}Revoke Access{% else %}Grant Access{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                        <td>
+                            <span class="badge {% if agent.has_api_access %}badge-success{% else %}badge-muted{% endif %}">
+                                {% if agent.has_api_access %}On{% else %}Off{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge {% if agent.is_paused %}badge-danger{% else %}badge-success{% endif %}">
+                                {% if agent.is_paused %}Paused{% else %}Active{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                <button class="btn btn-sm btn-primary"
+                                    onclick="openClearModal('{{ agent.pk }}', '{{ agent.full_name }}', '{{ agent.debt_balance }}')">
+                                    <i class="fa fa-money-bill-wave"></i> Clear
+                                </button>
+                                <button class="btn btn-sm btn-outline"
+                                    onclick="toggleHistory('history-{{ agent.pk }}')">
+                                    <i class="fa fa-clock-rotate-left"></i> History
+                                </button>
+                                <a href="/admin-panel/users/{{ agent.pk }}/toggle-pause/"
+                                   class="btn btn-sm {% if agent.is_paused %}btn-primary{% else %}btn-danger{% endif %}">
+                                    {% if agent.is_paused %}Reactivate{% else %}Pause{% endif %}
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr id="history-{{ agent.pk }}" style="display:none;">
+                        <td colspan="7" style="padding:0; border-bottom:1px solid var(--border);">
+                            <div style="background:var(--surface2); padding:16px 20px;">
+                                <p style="font-size:0.8rem; font-weight:600; color:var(--muted); margin-bottom:12px; text-transform:uppercase;">
+                                    Payment History - {{ agent.full_name }}
+                                </p>
+                                {% if agent.payment_history %}
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style="font-size:0.75rem;">Date &amp; Time</th>
+                                            <th style="font-size:0.75rem;">Amount Cleared</th>
+                                            <th style="font-size:0.75rem; color:#f44336;">Owed Before</th>
+                                            <th style="font-size:0.75rem; color:#f44336;">Owed After</th>
+                                            <th style="font-size:0.75rem;">Note</th>
+                                            <th style="font-size:0.75rem;">Cleared By</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for payment in agent.payment_history %}
+                                        <tr>
+                                            <td style="font-size:0.85rem;">{{ payment.created_at|date:"d M Y, H:i" }}</td>
+                                            <td style="font-size:0.85rem; color:var(--primary); font-weight:600;">GHS {{ payment.amount }}</td>
+                                            <td style="font-size:0.85rem; color:#f44336;">{% if payment.balance_before is not None %}GHS {{ payment.balance_before }}{% else %}—{% endif %}</td>
+                                            <td style="font-size:0.85rem; color:#f44336;">{% if payment.balance_after is not None %}GHS {{ payment.balance_after }}{% else %}—{% endif %}</td>
+                                            <td style="font-size:0.85rem; color:var(--muted);">{{ payment.note|default:"-" }}</td>
+                                            <td style="font-size:0.85rem;">{{ payment.cleared_by.full_name|default:"Admin" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <p style="color:var(--muted); font-size:0.85rem;">No payments recorded yet.</p>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align:center; color:var(--muted); padding:32px;">
+                            No agents with debt.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<div class="modal-overlay" id="clearModal">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeClearModal()"><i class="fa fa-xmark"></i></button>
+        <p class="modal-title">Clear Agent Debt</p>
+        <div style="background:var(--surface2); border-radius:8px; padding:14px 16px; margin-bottom:20px;">
+            <p style="font-size:0.8rem; color:var(--muted); margin-bottom:2px;">Agent</p>
+            <p style="font-weight:600; font-size:1rem;" id="modalAgentName">-</p>
+            <p style="font-size:0.8rem; color:var(--muted); margin-top:10px; margin-bottom:2px;">Outstanding Debt</p>
+            <p style="color:var(--danger); font-weight:700; font-size:1.3rem;" id="modalDebt">GHS 0.00</p>
+        </div>
+        <form method="post" action="/admin-panel/debt/">
+            {% csrf_token %}
+            <input type="hidden" name="agent_id" id="modalAgentId">
+            <div class="form-group">
+                <label>Amount to Clear (GHS)</label>
+                <input type="number" name="amount" step="0.01" min="0.01"
+                    class="form-control" placeholder="Enter amount" required id="modalAmount">
+                <p style="font-size:0.78rem; color:var(--muted); margin-top:6px;">Partial or full amount.</p>
+            </div>
+            <div class="form-group">
+                <label>Note (optional)</label>
+                <input type="text" name="note" class="form-control" placeholder="e.g. Mobile money payment received">
+            </div>
+            <div style="display:flex; gap:12px; margin-top:12px;">
+                <button type="submit" class="btn btn-primary" style="flex:1;"><i class="fa fa-check"></i> Confirm</button>
+                <button type="button" class="btn btn-outline" onclick="closeClearModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function openClearModal(agentId, agentName, debtBalance) {
+    document.getElementById('modalAgentId').value = agentId;
+    document.getElementById('modalAgentName').textContent = agentName;
+    document.getElementById('modalDebt').textContent = 'GHS ' + parseFloat(debtBalance).toFixed(2);
+    document.getElementById('modalAmount').max = debtBalance;
+    document.getElementById('clearModal').classList.add('open');
+}
+function closeClearModal() { document.getElementById('clearModal').classList.remove('open'); }
+function toggleHistory(id) {
+    const row = document.getElementById(id);
+    row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
+}
+</script>
+{% endblock %}

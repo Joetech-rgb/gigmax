@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Bulk Order <span class="badge bg-danger">Extreme Heat</span></h2>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            {# ── Network selector ── #}
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Select Network</label>
+                <div class="btn-group w-100" id="network_buttons">
+                    {% for net in networks %}
+                    <button type="button"
+                            class="btn btn-outline-secondary network-btn"
+                            data-network="{{ net }}">
+                        {{ net }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# ── Paste area ── #}
+            <label for="bulk_input" class="form-label">
+                Paste Numbers &amp; GB &nbsp;<small class="text-muted">(Format: 0244111222 5GB)</small>
+            </label>
+            <textarea id="bulk_input" class="form-control" rows="10"
+                      placeholder="0244111222 5GB&#10;0555999888 10GB"></textarea>
+
+            {# ── Live summary ── #}
+            <div class="mt-3 p-3 bg-light border rounded" id="summary_box" style="display:none;">
+                <div class="row text-center">
+                    <div class="col">
+                        <small class="text-muted d-block">Valid Orders</small>
+                        <strong id="total_orders">0</strong>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted d-block">Total GB</small>
+                        <strong id="total_gb">0 GB</strong>
+                    </div>
+                    <div class="col text-danger">
+                        <small class="text-muted d-block">Est. Lines</small>
+                        <strong id="total_lines">0</strong>
+                    </div>
+                </div>
+                <p class="text-muted text-center mt-2 mb-0" style="font-size:.8rem;">
+                    Exact prices are calculated after validation (prices vary by package).
+                </p>
+            </div>
+
+            {# ── Hidden errors list ── #}
+            <ul id="error_list" class="mt-2 ps-3" style="font-size:.85rem; color:#dc3545;"></ul>
+
+            {# ── Validate button ── #}
+            <div class="mt-4 text-end" id="validate_section" style="display:none;">
+                <form method="POST" action="/agent/buy/bulk/validate/" id="bulk_form">
+                    {% csrf_token %}
+                    <input type="hidden" name="network" id="network_input" value="">
+                    <input type="hidden" name="bulk_input" id="bulk_input_hidden" value="">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        Validate &amp; Preview Total →
+                    </button>
+                </form>
+                <small class="text-muted">
+                    You'll confirm the exact total and payment method on the next screen.
+                </small>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    let selectedNetwork = '';
+
+    // ── Network buttons ──
+    document.querySelectorAll('.network-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.network-btn').forEach(b => b.classList.remove('btn-primary', 'active'));
+            document.querySelectorAll('.network-btn').forEach(b => b.classList.add('btn-outline-secondary'));
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-primary', 'active');
+            selectedNetwork = btn.dataset.network;
+            document.getElementById('network_input').value = selectedNetwork;
+            parseBulk();
+        });
+    });
+
+    // ── Live parse ──
+    document.getElementById('bulk_input').addEventListener('input', parseBulk);
+
+    function parseBulk() {
+        var raw    = document.getElementById('bulk_input').value;
+        var lines  = raw.split(/\r?\n/);
+        var errors = [];
+        var valid  = 0;
+        var totalGb = 0;
+
+        lines.forEach(function (line, idx) {
+            line = line.trim();
+            if (!line) return;
+
+            var parts = line.split(/[ ,]+/);
+            var phone = parts[0] || '';
+            var gbRaw = (parts[1] || '').toUpperCase().replace('GB', '').trim();
+            var gb    = parseFloat(gbRaw);
+
+            if (!/^0\d{9}$/.test(phone)) {
+                errors.push('Line ' + (idx + 1) + ': "' + phone + '" — invalid phone');
+                return;
+            }
+            if (isNaN(gb) || gb <= 0) {
+                errors.push('Line ' + (idx + 1) + ': "' + (parts[1] || '') + '" — invalid GB');
+                return;
+            }
+
+            valid++;
+            totalGb += gb;
+        });
+
+        // Update UI
+        var hasContent = valid > 0 || errors.length > 0;
+        document.getElementById('summary_box').style.display     = hasContent ? 'block' : 'none';
+        document.getElementById('validate_section').style.display = (valid > 0 && selectedNetwork) ? 'block' : 'none';
+
+        document.getElementById('total_orders').innerText = valid;
+        document.getElementById('total_gb').innerText     = totalGb + ' GB';
+        document.getElementById('total_lines').innerText  = lines.filter(l => l.trim()).length;
+
+        var errList = document.getElementById('error_list');
+        errList.innerHTML = '';
+        errors.slice(0, 10).forEach(function (e) {
+            var li = document.createElement('li');
+            li.textContent = e;
+            errList.appendChild(li);
+        });
+        if (errors.length > 10) {
+            var li = document.createElement('li');
+            li.textContent = '…and ' + (errors.length - 10) + ' more errors.';
+            errList.appendChild(li);
+        }
+    }
+
+    // ── On submit, sync textarea into hidden field ──
+    document.getElementById('bulk_form').addEventListener('submit', function () {
+        document.getElementById('bulk_input_hidden').value = document.getElementById('bulk_input').value;
+        if (!selectedNetwork) {
+            alert('Please select a network first.');
+            event.preventDefault();
+        }
+    });
+})();
+</script>
+
+<style>
+textarea#bulk_input {
+    font-family: 'Courier New', Courier, monospace;
+    border: 2px solid #ddd;
+}
+textarea#bulk_input:focus {
+    border-color: #ff4500;
+    box-shadow: 0 0 10px rgba(255,69,0,.2);
+}
+.network-btn { transition: all .15s; }
+</style>
+{% endblock %}

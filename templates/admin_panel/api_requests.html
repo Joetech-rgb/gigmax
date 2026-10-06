@@ -1,0 +1,112 @@
+﻿{% extends "base.html" %}
+{% block title %}API Requests - Admin{% endblock %}
+
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+
+        <h1 class="page-title"><i class="fa fa-plug"></i> API Access Requests</h1>
+
+        <!-- Pending Requests -->
+        <div class="card" style="margin-bottom:24px;">
+            <p class="section-title">
+                <i class="fa fa-clock"></i> Pending Requests
+                <span class="badge badge-warning" style="margin-left:8px;">{{ pending_requests|length }}</span>
+            </p>
+            {% if pending_requests %}
+            <div class="table-wrap">
+                <table style="min-width:700px; width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Agent</th>
+                            <th>Website URL</th>
+                            <th>Reason</th>
+                            <th>Date Requested</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in pending_requests %}
+                        <tr>
+                            <td>
+                                <strong>{{ req.agent.full_name }}</strong><br>
+                                <small style="color:var(--muted);">{{ req.agent.username }}</small>
+                            </td>
+                            <td style="font-size:0.85rem;">{{ req.website_url|default:"-" }}</td>
+                            <td style="font-size:0.85rem; max-width:220px;">{{ req.reason|truncatechars:80|default:"-" }}</td>
+                            <td style="font-size:0.8rem; color:var(--muted); white-space:nowrap;">
+                                {{ req.created_at|date:"d/m/Y H:i" }}
+                            </td>
+                            <td>
+                                <form method="POST" style="display:flex; gap:6px; flex-wrap:wrap;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="request_id" value="{{ req.id }}">
+                                    <button type="submit" name="action" value="approve"
+                                            class="btn btn-sm"
+                                            style="background:rgba(0,200,83,0.15); color:var(--primary); border:1px solid rgba(0,200,83,0.3);">
+                                        <i class="fa fa-check"></i> Approve
+                                    </button>
+                                    <button type="submit" name="action" value="deny"
+                                            class="btn btn-sm"
+                                            style="background:rgba(244,67,54,0.12); color:#f44336; border:1px solid rgba(244,67,54,0.3);">
+                                        <i class="fa fa-times"></i> Deny
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align:center; padding:32px; color:var(--muted);">
+                <i class="fa fa-check-circle" style="font-size:2rem; display:block; margin-bottom:12px; opacity:0.3;"></i>
+                No pending API requests.
+            </p>
+            {% endif %}
+        </div>
+
+        <!-- Approved Requests -->
+        <div class="card">
+            <p class="section-title"><i class="fa fa-circle-check"></i> Approved Requests</p>
+            {% if approved_requests %}
+            <div class="table-wrap">
+                <table style="min-width:600px; width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Agent</th>
+                            <th>API Token</th>
+                            <th>Approved By</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in approved_requests %}
+                        <tr>
+                            <td><strong>{{ req.agent.full_name }}</strong></td>
+                            <td>
+                                <code style="font-size:0.78rem; background:var(--surface2); padding:3px 8px; border-radius:4px;">
+                                    {{ req.agent.api_token|default:"N/A"|truncatechars:32 }}
+                                </code>
+                            </td>
+                            <td style="font-size:0.85rem;">{{ req.reviewed_by.full_name|default:"-" }}</td>
+                            <td style="font-size:0.8rem; color:var(--muted); white-space:nowrap;">
+                                {{ req.reviewed_at|date:"d/m/Y H:i" }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align:center; padding:32px; color:var(--muted);">
+                <i class="fa fa-plug" style="font-size:2rem; display:block; margin-bottom:12px; opacity:0.3;"></i>
+                No approved requests yet.
+            </p>
+            {% endif %}
+        </div>
+
+    </main>
+</div>
+{% endblock %}

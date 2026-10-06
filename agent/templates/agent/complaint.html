@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Complaint — SK Plug{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; max-width:600px;">
+        <h1 class="page-title">Send a Complaint</h1>
+        <div class="card" style="text-align:center; padding:48px;">
+            <i class="fab fa-whatsapp" style="font-size:3rem; color:var(--primary); margin-bottom:16px;"></i>
+            <p style="color:var(--muted); margin-bottom:24px;">
+                Send your complaint or issue directly to Admin via WhatsApp for the fastest response.
+            </p>
+            <a href="https://wa.me/{{ admin_whatsapp }}" target="_blank" class="btn btn-primary btn-full">
+                <i class="fab fa-whatsapp"></i> Open WhatsApp
+            </a>
+        </div>
+    </main>
+</div>
+{% endblock %}

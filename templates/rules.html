@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}Terms & Conditions - SK Plug{% endblock %}
+
+{% block body %}
+<div style="max-width: 680px; margin: 40px auto; padding: 20px;">
+  <h1 style="margin-bottom: 4px;">Terms &amp; Conditions</h1>
+  <p style="font-size: 13px; color: var(--muted); margin: 0 0 1.5rem;">Tap to expand</p>
+
+  <style>
+    .rules-toggle {
+      width: 100%; background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 16px 20px; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 15px; font-weight: 700; color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      transition: border-color 0.2s;
+    }
+    .rules-toggle:hover { border-color: var(--primary); }
+    .rules-icon {
+      font-size: 22px; color: var(--muted);
+      transition: transform 0.2s;
+    }
+    .rules-icon.open { transform: rotate(45deg); }
+
+    .rules-body {
+      display: none;
+      border: 1.5px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 12px 12px;
+      padding: 8px 20px 4px;
+      background: var(--surface);
+    }
+    .rules-body.open { display: block; }
+
+    .rule-row {
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .rule-row:last-child { border-bottom: none; }
+    .rule-emoji { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+    .rule-row strong { font-size: 0.92rem; color: var(--text); display: block; margin-bottom: 4px; }
+    .rule-row p, .rule-row ul { font-size: 0.84rem; color: var(--muted); margin: 0; line-height: 1.6; }
+    .rule-row ul { padding-left: 18px; margin-top: 6px; }
+    .rule-row li { margin-bottom: 4px; }
+
+    .acc-badge {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 99px; margin-left: 8px;
+      background: rgba(255,179,0,0.15); color: var(--warning);
+    }
+    .acc-badge-info {
+      background: rgba(0,200,83,0.15); color: var(--primary);
+    }
+  </style>
+
+  <button class="rules-toggle" onclick="toggleRules(this)">
+    <span>📋 Terms &amp; Conditions</span>
+    <span class="rules-icon">+</span>
+  </button>
+
+  <div class="rules-body" id="rules_body">
+
+    <div class="rule-row">
+      <span class="rule-emoji">🔒</span>
+      <div>
+        <strong>1. Orders</strong>
+        <p>All orders are final and cannot be refunded once placed.</p>
+      </div>
+    </div>
+
+    <div class="rule-row">
+      <span class="rule-emoji">📞</span>
+      <div>
+        <strong>2. Phone Numbers</strong>
+        <p>Please ensure you enter the correct number. We are not responsible for wrong numbers.</p>
+      </div>
+    </div>
+
+    <div class="rule-row">
+      <span class="rule-emoji">⏱️</span>
+      <div>
+        <strong>3. Delivery Time</strong>
+        <p>Delivery is within 1–15 minutes. It may delay if <strong style="color:#e53935;">validation</strong> sets in, usually taking hours.</p>
+      </div>
+    </div>
+
+    <div class="rule-row">
+      <span class="rule-emoji">💬</span>
+      <div>
+        <strong>4. Support</strong>
+        <p>Join our WhatsApp Community for updates.<br>Confirm your order once delivered. No complaints after <strong>24 hours</strong>.</p>
+      </div>
+    </div>
+
+    <div class="rule-row">
+      <span class="rule-emoji">⚠️</span>
+      <div>
+        <strong>5. Restrictions <span class="acc-badge">Important</span></strong>
+        <p>Do not send orders to MTN numbers with unpaid airtime.<br>Orders may delay if number verification is required.</p>
+      </div>
+    </div>
+
+    <div class="rule-row">
+      <span class="rule-emoji">📸</span>
+      <div>
+        <strong>6. Complaints</strong>
+        <p>All complaints must include screenshots.</p>
+      </div>
+    </div>
+
+    <div class="rule-row">
+      <span class="rule-emoji">🕐</span>
+      <div>
+        <strong>Working Hours <span class="acc-badge acc-badge-info">24/7 orders</span></strong>
+        <p>We operate 24 hours, but deliveries are made between <strong>5:00 AM – 10:00 PM</strong> daily.</p>
+      </div>
+    </div>
+
+    <div class="rule-row">
+      <span class="rule-emoji">🚫</span>
+      <div>
+        <strong>Restricted SIM Types <span class="acc-badge">Read before ordering</span></strong>
+        <ul>
+          <li><strong>MTN:</strong> TurboNet, Broadband, Agent/Merchant, Transfer, Blacklisted, Enterprise</li>
+          <li><strong>AirtelTigo:</strong> Student Hybrid, Deactivated, Airtel Money</li>
+          <li><strong>Telecel:</strong> Telecash, Corporate, International Roaming</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function toggleRules(btn) {
+      const body = document.getElementById('rules_body');
+      const icon = btn.querySelector('.rules-icon');
+      const isOpen = body.classList.contains('open');
+      if (isOpen) {
+        body.classList.remove('open');
+        icon.classList.remove('open');
+        btn.style.borderRadius = '12px';
+      } else {
+        body.classList.add('open');
+        icon.classList.add('open');
+        btn.style.borderRadius = '12px 12px 0 0';
+      }
+    }
+  </script>
+</div>
+{% endblock %}

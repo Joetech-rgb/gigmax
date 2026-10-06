@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Customer Orders – Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+        <h1 class="page-title">Customer Orders</h1>
+
+        <form method="get" class="card" style="margin-bottom:20px;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <input type="text" name="search" value="{{ request.GET.search }}"
+                       class="form-control" placeholder="Search number or order ID..." style="flex:1;">
+                <input type="date" name="date_from" value="{{ request.GET.date_from }}" class="form-control" style="width:160px;">
+                <input type="date" name="date_to"   value="{{ request.GET.date_to }}"   class="form-control" style="width:160px;">
+                <select name="status_filter" class="form-control" style="width:170px;">
+                    <option value="">All Statuses</option>
+                    <option value="pending"         {% if request.GET.status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="pending_payment" {% if request.GET.status_filter == 'pending_payment' %}selected{% endif %}>Pending Payment</option>
+                    <option value="processing"      {% if request.GET.status_filter == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="waiting"         {% if request.GET.status_filter == 'waiting' %}selected{% endif %}>Waiting</option>
+                    <option value="refunded"        {% if request.GET.status_filter == 'refunded' %}selected{% endif %}>Refunded</option>
+                    <option value="delivered"       {% if request.GET.status_filter == 'delivered' %}selected{% endif %}>Delivered</option>
+                    <option value="failed"          {% if request.GET.status_filter == 'failed' %}selected{% endif %}>Failed</option>
+                </select>
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+        </form>
+
+        <div class="card table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Order ID</th>
+                        <th>Recipient</th>
+                        <th>GB</th>
+                        <th>Network</th>
+                        <th>Status</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in orders %}
+                    <tr>
+                        <td style="color:var(--muted);">{{ forloop.counter }}</td>
+                        <td><code>{{ o.order_id }}</code></td>
+                        <td><strong>{{ o.recipient }}</strong></td>
+                        <td>{{ o.gb_package.gb_size|floatformat:0 }}GB</td>
+                        <td>{{ o.network }}</td>
+                        <td>
+                            <span class="badge
+                                {% if o.status == 'delivered' %}badge-success
+                                {% elif o.status == 'processing' %}badge-warning
+                                {% elif o.status == 'failed' %}badge-danger
+                                {% else %}badge-muted{% endif %}">
+                                {{ o.get_status_display }}
+                            </span>
+                        </td>
+                        <td>GHS {{ o.price_paid }}</td>
+                        <td style="color:var(--muted); font-size:0.8rem;">{{ o.created_at|date:"d M H:i" }}</td>
+                        <td>
+                            <form method="post" action="/admin-panel/orders/{{ o.order_id }}/status/">
+                                {% csrf_token %}
+                                <select name="status" class="form-control"
+                                        style="padding:4px 8px; font-size:0.8rem; width:120px;"
+                                        onchange="this.form.submit()">
+                                    <option value="pending"    {% if o.status == 'pending'    %}selected{% endif %}>Pending</option>
+                                    <option value="processing" {% if o.status == 'processing' %}selected{% endif %}>Processing</option>
+                                    <option value="waiting"    {% if o.status == 'waiting'    %}selected{% endif %}>Waiting</option>
+                                    <option value="refunded"  {% if o.status == 'refunded'  %}selected{% endif %}>Refunded</option>
+                                    <option value="delivered"  {% if o.status == 'delivered'  %}selected{% endif %}>Delivered</option>
+                                    <option value="failed"     {% if o.status == 'failed'     %}selected{% endif %}>Failed</option>
+                                </select>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align:center; color:var(--muted); padding:32px;">
+                            No customer orders found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+{% endblock %}

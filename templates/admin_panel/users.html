@@ -1,0 +1,206 @@
+﻿{% extends 'base.html' %}
+{% block title %}Users â€“ Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+
+        <h1 class="page-title">Users</h1>
+        <div style="margin-bottom:16px; text-align:right;">
+            <a href="/admin-panel/users/export-csv/" class="btn btn-outline">
+                <i class="fa fa-download"></i> Download CSV
+            </a>
+        </div>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        <div style="display:flex;gap:16px;margin-bottom:20px;">
+            <div class="card" style="flex:1;padding:20px;text-align:center;">
+                <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Combined Wallet Balance</div>
+                <div style="font-size:28px;font-weight:700;color:var(--primary);">GHS {{ total_wallet_balance|floatformat:2 }}</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">All Users Combined</div>
+            </div>
+        </div>
+        <form method="get" class="card" style="margin-bottom:20px;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <input type="text" name="search" value="{{ request.GET.search }}"
+                       class="form-control" placeholder="Name, phone, email..." style="flex:1; min-width:160px;">
+                <select name="role" class="form-control" style="width:180px;">
+                    <option value="">All Roles</option>
+                    {% for val, label in roles %}
+                    <option value="{{ val }}" {% if request.GET.role == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+
+        <div class="card table-wrap">
+            <table style="min-width:900px;">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Balance</th>
+                        <th>Orders</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td><strong>{{ u.full_name }}</strong></td>
+                        <td>{{ u.phone_number }}</td>
+                        <td style="color:var(--muted);">{{ u.email|default:"â€”" }}</td>
+
+                        <td>
+                            <form method="post" action="/admin-panel/users/{{ u.pk }}/role/">
+                                {% csrf_token %}
+                                <input type="hidden" name="custom_role_id" value="">
+                                <select name="role" class="role-select" onchange="handleRoleChange(this)">
+
+                                    <!-- Hardcoded roles -->
+                                    {% for val, label in roles %}
+                                    <option value="{{ val }}"
+                                        {% if not u.custom_role and u.role == val %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                    {% endfor %}
+
+                                    {% if custom_roles %}
+                                    <option disabled>â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€</option>
+                                    {% for cr in custom_roles %}
+                                    <option value="__custom__{{ cr.pk }}"
+                                        {% if u.custom_role_id == cr.pk %}selected{% endif %}>
+                                        â˜… {{ cr.name }}
+                                    </option>
+                                    {% endfor %}
+                                    <option disabled>â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€</option>
+                                    <option value="__new__">+ Create New Role</option>
+                                    {% endif %}
+
+                                </select>
+                            </form>
+                        </td>
+
+                        <td>
+                            {% if u.debt_balance > 0 %}
+                            <span style="color:var(--danger); font-weight:600;">-GHS {{ u.debt_balance }}</span>
+                            {% else %}
+                            <span style="color:var(--primary); font-weight:600;">GHS {{ u.wallet_balance }}</span>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ u.orders_placed.count }}</td>
+
+                        <td style="font-size:0.8rem; color:var(--muted);">
+                            {{ u.date_joined|date:"d M Y" }}
+                        </td>
+
+                        <td>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button class="btn btn-sm {% if u.is_paused %}btn-primary{% else %}btn-danger{% endif %}"
+                                    onclick="confirmAction(
+                                        '{% if u.is_paused %}Activate {{ u.full_name }}?{% else %}Pause {{ u.full_name }}?{% endif %}',
+                                        '/admin-panel/users/{{ u.pk }}/toggle-pause/'
+                                    )">
+                                    {% if u.is_paused %}
+                                        <i class="fa fa-circle-play"></i> Activate
+                                    {% else %}
+                                        <i class="fa fa-circle-pause"></i> Pause
+                                    {% endif %}
+                                </button>
+
+                                <button class="btn btn-sm btn-danger"
+                                    onclick="confirmDelete(
+                                        'Delete {{ u.full_name }}? This cannot be undone.',
+                                        '{{ u.pk }}'
+                                    )">
+                                    <i class="fa fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align:center; color:var(--muted); padding:32px;">
+                            No users found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+</div>
+
+<!-- Delete Form (hidden) -->
+<form id="deleteForm" method="post" action="" style="display:none;">
+    {% csrf_token %}
+</form>
+
+<style>
+.role-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    padding: 6px 10px;
+    cursor: pointer;
+    width: 160px;
+    transition: border-color 0.2s;
+}
+.role-select:focus { outline: none; border-color: var(--primary); }
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function handleRoleChange(select) {
+    const val = select.value;
+
+    if (val === '__new__') {
+        window.location.href = '/admin-panel/agent-roles/';
+        return;
+    }
+
+    const form = select.closest('form');
+
+    if (val.startsWith('__custom__')) {
+        const customRoleId = val.replace('__custom__', '');
+        form.querySelector('[name="custom_role_id"]').value = customRoleId;
+        form.querySelector('[name="role"]').value = 'small_agent';
+    } else {
+        form.querySelector('[name="custom_role_id"]').value = '';
+    }
+
+    form.submit();
+}
+
+function confirmAction(message, url) {
+    openConfirm(message, function() {
+        window.location.href = url;
+    });
+}
+
+function confirmDelete(message, userId) {
+    openConfirm(message, function() {
+        const form = document.getElementById('deleteForm');
+        form.action = '/admin-panel/users/' + userId + '/delete/';
+        form.submit();
+    });
+}
+</script>
+{% endblock %}
+

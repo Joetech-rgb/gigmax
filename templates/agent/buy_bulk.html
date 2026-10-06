@@ -1,0 +1,342 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block body %}
+<main style="flex:1; padding:32px 24px; min-width:0;">
+<style>
+    .bo-wrap { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+    .bo-header { display: flex; align-items: center; justify-content: space-between; }
+    .bo-title { font-size: 1.4rem; font-weight: 700; }
+    .bo-badge { background: rgba(255,23,68,0.1); color: #FF1744; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+    .bo-input-wrap { position: relative; }
+    .bo-textarea { width: 100%; min-height: 140px; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-size: 0.95rem; resize: vertical; box-sizing: border-box; font-family: monospace; }
+    .bo-line-count { position: absolute; bottom: 10px; right: 12px; font-size: 0.78rem; color: var(--muted); }
+    .bo-hint { font-size: 0.83rem; color: var(--muted); }
+    .bo-hint span { color: var(--primary); font-weight: 600; }
+    .bo-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .bo-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+    .bo-stat-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+    .bo-stat-val { font-size: 1.2rem; font-weight: 700; }
+    .bo-stat-val.accent { color: var(--primary); }
+    .bo-payment { background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; display: none; }
+    .bo-payment-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .bo-payment-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+    .bo-breakdown { display: flex; flex-direction: column; gap: 6px; }
+    .bo-brow { display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; }
+    .bo-brow-label { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-wallet { background: var(--primary); }
+    .dot-debt { background: #FF6D00; }
+    .dot-paystack { background: #2196F3; }
+    .amt-wallet { color: var(--primary); font-weight: 700; }
+    .amt-debt { color: #FF6D00; font-weight: 700; }
+    .amt-paystack { color: #2196F3; font-weight: 700; }
+    .bo-cta { width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+    .bo-cta.wallet-only { background: var(--primary); color: #fff; }
+    .bo-cta.paystack { background: #2196F3; color: #fff; }
+    .bo-cta.debt { background: #FF6D00; color: #fff; }
+    .bo-wallet-note { font-size: 0.83rem; color: var(--muted); text-align: center; }
+    .bo-validation { display: flex; flex-direction: column; gap: 6px; }
+    .bo-vrow { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; font-size: 0.88rem; }
+    .bo-vrow.valid { background: rgba(0,200,83,0.08); }
+    .bo-vrow.invalid { background: rgba(255,23,68,0.08); }
+    .vicon { font-weight: 700; min-width: 16px; }
+    .bo-vrow.valid .vicon { color: var(--primary); }
+    .bo-vrow.invalid .vicon { color: #FF1744; }
+    .vnum { font-family: monospace; flex: 1; }
+    .vgb { color: var(--muted); min-width: 40px; }
+    .verr { color: #FF1744; flex: 1; font-size: 0.82rem; }
+    .bo-vrow .vprice { color: var(--green); font-weight: 700; min-width: 80px; text-align: right; }
+    .bo-network-select {
+        width: 100%; max-width: 300px; padding: 10px 16px; border-radius: 12px;
+        border: 1.5px solid var(--border); background: var(--surface); color: var(--text);
+        font-size: 0.95rem; font-weight: 600; cursor: pointer;
+        appearance: none; -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px;
+    }
+    .bo-network-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,200,83,0.15); }
+</style>
+
+<div class="bo-wrap">
+
+  {% if not mtn_enabled %}
+  <div style="background:rgba(255,109,0,0.1); border:1px solid rgba(255,109,0,0.4);
+              border-radius:10px; padding:12px 16px;
+              display:flex; align-items:center; gap:10px;">
+    <span style="font-size:1.2rem;">⚠️</span>
+    <span style="font-size:0.88rem; color:#FF6D00; font-weight:600;">
+      MTN orders are temporarily unavailable. Please use Telecel or AT.
+    </span>
+  </div>
+  {% endif %}
+
+  <div class="bo-header">
+    <h2 class="bo-title">Bulk Order</h2>
+    <div class="bo-badge">&#x1F525; Extreme Heat</div>
+  </div>
+
+  <div>
+    <label style="font-size:0.85rem; color:var(--muted); font-weight:600; display:block; margin-bottom:8px;">
+      Select Network
+    </label>
+    <select id="network_select" class="bo-network-select">
+      <option value="">— Select Network —</option>
+      {% for net in networks %}
+      <option value="{{ net }}">{{ net }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="bo-input-wrap">
+    <textarea class="bo-textarea" id="bulk_input"
+      placeholder="0244111222 5&#10;0555999888 10&#10;0201234567 2&#10;&#10;One order per line — number then GB"></textarea>
+    <span class="bo-line-count" id="line_count">0 lines</span>
+  </div>
+
+  <div class="bo-hint">
+    Format: <span>0XXXXXXXXX GB</span> &nbsp;&bull;&nbsp; one per line
+  </div>
+
+  <div class="bo-stats">
+    <div class="bo-stat">
+      <div class="bo-stat-label">Valid Orders</div>
+      <div class="bo-stat-val" id="stat_orders">0</div>
+    </div>
+    <div class="bo-stat">
+      <div class="bo-stat-label">Total GB</div>
+      <div class="bo-stat-val" id="stat_gb">0</div>
+    </div>
+    <div class="bo-stat">
+      <div class="bo-stat-label">Total Amount</div>
+      <div class="bo-stat-val accent" id="stat_amount">GHS 0.00</div>
+    </div>
+  </div>
+
+  <div class="bo-payment" id="payment_box">
+    <div class="bo-payment-header">
+      <div>
+        <span>Place Order</span><br>
+        <strong id="pay_summary">0 orders &mdash; GHS 0.00</strong>
+      </div>
+      <span id="pay_network_tag" style="font-size:0.85rem; font-weight:700;"></span>
+    </div>
+    <div class="bo-payment-body">
+      <div class="bo-breakdown" id="breakdown_rows"></div>
+      <form method="POST" action="{% url 'agent_submit_bulk' %}" id="placeOrderForm">
+        {% csrf_token %}
+        <input type="hidden" name="network" id="f_network" value="">
+        <div id="f_orders"></div>
+        <button type="submit" class="bo-cta" id="place_btn">Place Orders</button>
+      </form>
+      <p class="bo-wallet-note">
+        Wallet: <b>GHS {{ request.user.wallet_balance|floatformat:2 }}</b>
+      </p>
+    </div>
+  </div>
+
+  <div class="bo-validation" id="validation_list"></div>
+</div>
+
+{# ── MTN Toast ── #}
+<div id="mtn-toast"
+     style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+            background:#FF6D00; color:#fff; padding:12px 24px; border-radius:12px;
+            font-weight:700; font-size:0.9rem; z-index:9999;
+            box-shadow:0 4px 16px rgba(0,0,0,0.3); transition:opacity 0.3s;">
+  ⚠️ MTN orders are temporarily unavailable
+</div>
+
+<script>
+  let bundleCache = {};
+  const WALLET_BAL  = parseFloat("{{ request.user.wallet_balance }}");
+  const HAS_DEBT    = {{ request.user.debt_page_access|yesno:"true,false" }};
+  const MTN_ENABLED = {{ mtn_enabled|yesno:"true,false" }};
+  let selectedNetwork = '';
+
+  function showMtnToast() {
+    const t = document.getElementById('mtn-toast');
+    t.style.display = 'block';
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => {
+      t.style.opacity = '0';
+      setTimeout(() => { t.style.display = 'none'; }, 300);
+    }, 3000);
+  }
+
+  function normalizeGb(val) {
+    const f = parseFloat(val);
+    if (isNaN(f)) return val;
+    return f % 1 === 0 ? String(Math.floor(f)) : String(f);
+  }
+
+  async function updateBundleCache(network) {
+    if (!network) { bundleCache = {}; revalidate(); return; }
+    try {
+      const response = await fetch(`/agent/buy/bulk/bundles/?network=${network}`);
+      const data = await response.json();
+      bundleCache = {};
+      data.bundles.forEach(b => {
+        const key = normalizeGb(b.gb_size);
+        bundleCache[key] = { id: b.id, price: b.price };
+      });
+      revalidate();
+    } catch (e) { console.error('Failed to load bundles:', e); }
+  }
+
+  document.getElementById('network_select').addEventListener('change', async function () {
+    // ── MTN block ──────────────────────────────────────────────────────────
+    if (this.value === 'MTN' && !MTN_ENABLED) {
+      this.value = '';
+      selectedNetwork = '';
+      document.getElementById('f_network').value = '';
+      document.getElementById('pay_network_tag').textContent = '';
+      showMtnToast();
+      bundleCache = {};
+      revalidate();
+      return;
+    }
+    // ──────────────────────────────────────────────────────────────────────
+    selectedNetwork = this.value;
+    document.getElementById('f_network').value = selectedNetwork;
+    document.getElementById('pay_network_tag').textContent = selectedNetwork;
+    await updateBundleCache(selectedNetwork);
+  });
+
+  // ── Hard block on submit ───────────────────────────────────────────────
+  document.getElementById('placeOrderForm').addEventListener('submit', function (e) {
+    if (selectedNetwork === 'MTN' && !MTN_ENABLED) {
+      e.preventDefault();
+      showMtnToast();
+    }
+  });
+  // ──────────────────────────────────────────────────────────────────────
+
+  function parseLine(line) {
+    const parts = line.trim().split(/[\s,]+/);
+    const phone = parts[0] || '';
+    const gbRaw = (parts[1] || '').toUpperCase().replace('GB', '').trim();
+
+    if (!phone) return null;
+    if (!selectedNetwork) return { phone, error: 'Please select a network first' };
+    if (!/^0\d{9}$/.test(phone)) return { phone, error: 'Invalid 10-digit number starting with 0' };
+    if (!gbRaw) return { phone, error: 'Missing GB value' };
+
+    const gbKey = normalizeGb(gbRaw);
+    const pkg   = bundleCache[gbKey];
+    if (!pkg) return { phone, error: `${gbRaw}GB not available for ${selectedNetwork}` };
+
+    return { phone, gbKey, price: pkg.price, pkgId: pkg.id };
+  }
+
+  function revalidate() {
+    const raw   = document.getElementById('bulk_input').value;
+    const lines = raw.split(/\r?\n/).filter(l => l.trim());
+    document.getElementById('line_count').textContent = lines.length + ' lines';
+
+    const parsed = lines.map(parseLine).filter(r => r !== null);
+
+    const best = {};
+    for (const row of parsed) {
+      if (row.error) continue;
+      const phone = row.phone;
+      if (!(phone in best)) {
+        best[phone] = row;
+      } else {
+        const existingGb = parseFloat(best[phone].gbKey);
+        const currentGb  = parseFloat(row.gbKey);
+        if (currentGb > existingGb) {
+          best[phone]._duplicate = true;
+          best[phone]._dupMsg    = `Duplicate number — replaced by larger ${row.gbKey}GB entry`;
+          best[phone] = row;
+        } else {
+          row._duplicate = true;
+          row._dupMsg    = `Duplicate number — ${best[phone].gbKey}GB already selected (bigger or equal)`;
+        }
+      }
+    }
+
+    const orderedResults = parsed.map(row => {
+      if (row.error) return { phone: row.phone, error: row.error, valid: false };
+      if (row._duplicate) return { phone: row.phone, gb: row.gbKey, error: row._dupMsg, valid: false };
+      return { ...row, gb: row.gbKey, valid: true };
+    });
+
+    const valids   = orderedResults.filter(r => r.valid);
+    const totalGB  = valids.reduce((s, r) => s + parseFloat(r.gb), 0);
+    const totalAmt = valids.reduce((s, r) => s + r.price, 0);
+
+    document.getElementById('stat_orders').textContent = valids.length;
+    document.getElementById('stat_gb').textContent     = totalGB + ' GB';
+    document.getElementById('stat_amount').textContent = 'GHS ' + totalAmt.toFixed(2);
+
+    const listEl = document.getElementById('validation_list');
+    listEl.style.display = orderedResults.length > 0 ? 'flex' : 'none';
+    listEl.innerHTML = orderedResults.map(r => r.valid ? `
+      <div class="bo-vrow valid">
+        <div class="vicon">✓</div>
+        <div class="vnum">${r.phone}</div>
+        <div class="vgb">${r.gb}GB</div>
+        <div class="vprice">GHS ${r.price.toFixed(2)}</div>
+      </div>` : `
+      <div class="bo-vrow invalid">
+        <div class="vicon">✕</div>
+        <div class="vnum">${r.phone}</div>
+        <div class="verr">${r.error}</div>
+      </div>`).join('');
+
+    const payBox = document.getElementById('payment_box');
+    if (valids.length === 0) { payBox.style.display = 'none'; return; }
+
+    payBox.style.display = 'block';
+    document.getElementById('pay_summary').textContent =
+      `${valids.length} order${valids.length > 1 ? 's' : ''} — GHS ${totalAmt.toFixed(2)}`;
+
+    document.getElementById('f_orders').innerHTML = valids.map(r => `
+      <input type="hidden" name="recipients"  value="${r.phone}">
+      <input type="hidden" name="package_ids" value="${r.pkgId}">
+      <input type="hidden" name="prices"      value="${r.price}">
+    `).join('');
+
+    updatePaymentUI(totalAmt);
+  }
+
+  function updatePaymentUI(total) {
+    const walletUsed   = Math.min(WALLET_BAL, total);
+    const remainder    = total - walletUsed;
+    const debtUsed     = HAS_DEBT ? remainder : 0;
+    const paystackUsed = !HAS_DEBT ? remainder : 0;
+
+    let rows = '';
+    if (walletUsed   > 0) rows += createRow('Wallet',   walletUsed,   'dot-wallet',   'amt-wallet');
+    if (debtUsed     > 0) rows += createRow('Debt',     debtUsed,     'dot-debt',     'amt-debt');
+    if (paystackUsed > 0) rows += createRow('Paystack', paystackUsed, 'dot-paystack', 'amt-paystack');
+
+    document.getElementById('breakdown_rows').innerHTML = rows;
+
+    const btn = document.getElementById('place_btn');
+    if (paystackUsed > 0) {
+      btn.textContent = `Pay GHS ${paystackUsed.toFixed(2)} via Paystack`;
+      btn.className   = 'bo-cta paystack';
+    } else if (debtUsed > 0) {
+      btn.textContent = `Place Orders (Wallet + Debt)`;
+      btn.className   = 'bo-cta debt';
+    } else {
+      btn.textContent = `Place Orders — GHS ${total.toFixed(2)}`;
+      btn.className   = 'bo-cta wallet-only';
+    }
+  }
+
+  function createRow(label, amt, dot, cls) {
+    return `
+      <div class="bo-brow">
+        <div class="bo-brow-label"><div class="dot ${dot}"></div> ${label}</div>
+        <div class="bo-brow-amt ${cls}">GHS ${amt.toFixed(2)}</div>
+      </div>`;
+  }
+
+  document.getElementById('bulk_input').addEventListener('input', revalidate);
+</script>
+</main>
+{% endblock body %}

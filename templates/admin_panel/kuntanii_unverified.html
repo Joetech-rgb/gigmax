@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}Kuntanii - Unverified Numbers{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+        <h1 class="page-title"><i class="fa fa-triangle-exclamation"></i> Kuntanii - Unverified Numbers</h1>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        {% csrf_token %}
+
+        <!-- Summary Cards -->
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #FF6D00;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Total Unverified Numbers</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#FF6D00;">{{ total_count }}</div>
+            </div>
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid var(--primary);">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Agents Affected</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--primary);">{{ total_agents }}</div>
+            </div>
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #00C853;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Total Agent Cost</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#00C853;">GHS {{ grand_agent_cost|floatformat:2 }}</div>
+            </div>
+        </div>
+
+        {% for group in groups %}
+        <div class="card table-wrap" style="margin-bottom:20px;">
+            <div style="padding:14px 16px; font-weight:700; border-bottom:1px solid var(--border, #eee); display:flex; justify-content:space-between; align-items:center;">
+                <span><i class="fa fa-user"></i> {{ group.agent_name }}</span>
+                <span style="display:flex; align-items:center; gap:16px;">
+                    <span style="color:#FF6D00; font-weight:600;">{{ group.orders|length }} unverified</span>
+                    <span style="color:#00C853; font-weight:600;">GHS {{ group.agent_cost_total|floatformat:2 }}</span>
+                    {% if group.agent_pk %}
+                    <button type="button" class="btn btn-danger btn-sm kuntanii-convert-btn"
+                            data-agent-id="{{ group.agent_pk }}"
+                            data-agent-name="{{ group.agent_name }}"
+                            data-count="{{ group.orders|length }}">
+                        Convert to Refund
+                    </button>
+                    {% endif %}
+                </span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Phone</th>
+                        <th>Data (GB)</th>
+                        <th>Placed</th>
+                        <th>Flagged</th>
+                        <th>Source</th>
+                        <th>Reason</th>
+                        <th>Retail Price</th>
+                        <th>Agent Cost</th>
+                        <th>Order ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in group.orders %}
+                    <tr>
+                        <td>{{ o.phone }}</td>
+                        <td>{{ o.gb_size|default:"-" }}</td>
+                        <td>{{ o.placed_at|date:"d M Y, H:i" }}</td>
+                        <td>{{ o.flagged_at|date:"d M Y, H:i" }}</td>
+                        <td>{{ o.source }}</td>
+                        <td style="color:#E91E63;">{{ o.reason }}</td>
+                        <td>GHS {{ o.retail_price|floatformat:2 }}</td>
+                        <td style="color:#00C853;">GHS {{ o.agent_cost|floatformat:2 }}</td>
+                        <td style="font-family:monospace; font-size:0.8rem;">{{ o.order_id }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% empty %}
+        <div class="card" style="padding:32px; text-align:center; color:var(--muted);">
+            No unverified numbers currently flagged by Kuntanii.
+        </div>
+        {% endfor %}
+    </main>
+</div>
+<script>
+document.querySelectorAll('.kuntanii-convert-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+        const agentId = this.dataset.agentId;
+        const agentName = this.dataset.agentName;
+        const count = this.dataset.count;
+
+        const confirmed = confirm(
+            'Convert all ' + count + ' Kuntanii-unverified orders for ' + agentName + ' to Refunded? This cannot be easily undone.'
+        );
+        if (!confirmed) return;
+
+        this.disabled = true;
+        const originalText = this.textContent;
+        this.textContent = 'Processing...';
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+            const res = await fetch(`/admin-panel/kuntanii-unverified/${agentId}/convert/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+            });
+            const rawText = await res.text();
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseErr) {
+                alert('Server error (status ' + res.status + '). Raw response: ' + rawText.slice(0, 300));
+                this.disabled = false;
+                this.textContent = originalText;
+                return;
+            }
+            if (!res.ok) {
+                alert('Error (status ' + res.status + '): ' + (data.error || JSON.stringify(data)));
+                this.disabled = false;
+                this.textContent = originalText;
+                return;
+            }
+            alert('Updated ' + data.updated + ' orders to Refunded for ' + data.agent + '.');
+            window.location.reload();
+        } catch (err) {
+            alert('Network/JS error: ' + err.message);
+            this.disabled = false;
+            this.textContent = originalText;
+        }
+    });
+});
+</script>
+{% endblock %}

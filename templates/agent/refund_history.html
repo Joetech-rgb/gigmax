@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Refund History{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+        <h1 class="page-title"><i class="fa fa-clock-rotate-left"></i> Refund History</h1>
+
+        <!-- Totals -->
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #E91E63;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Total Refunds (Filtered)</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#E91E63;">{{ total_count }}</div>
+                <div style="font-size:0.85rem; color:#E91E63;">GHS {{ total_amount|floatformat:2 }}</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <form method="get" class="card" style="margin-bottom:24px; padding:16px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+            <div>
+                <label style="display:block; font-size:0.78rem; color:var(--muted); margin-bottom:4px;">From</label>
+                <input type="date" name="date_from" value="{{ filters.date_from }}" style="padding:8px; border-radius:6px; border:1px solid var(--border,#444); background:var(--surface2,#2a2a3e); color:inherit;">
+            </div>
+            <div>
+                <label style="display:block; font-size:0.78rem; color:var(--muted); margin-bottom:4px;">To</label>
+                <input type="date" name="date_to" value="{{ filters.date_to }}" style="padding:8px; border-radius:6px; border:1px solid var(--border,#444); background:var(--surface2,#2a2a3e); color:inherit;">
+            </div>
+            <div>
+                <label style="display:block; font-size:0.78rem; color:var(--muted); margin-bottom:4px;">Network</label>
+                <select name="network" style="padding:8px; border-radius:6px; border:1px solid var(--border,#444); background:var(--surface2,#2a2a3e); color:inherit;">
+                    <option value="">All</option>
+                    <option value="MTN" {% if filters.network == "MTN" %}selected{% endif %}>MTN</option>
+                    <option value="TELECEL" {% if filters.network == "TELECEL" %}selected{% endif %}>Telecel</option>
+                    <option value="AT_NOEXPIRY" {% if filters.network == "AT_NOEXPIRY" %}selected{% endif %}>AT (No Expiry)</option>
+                    <option value="AT_EXPIRY" {% if filters.network == "AT_EXPIRY" %}selected{% endif %}>AT (Expiry)</option>
+                </select>
+            </div>
+            <div>
+                <label style="display:block; font-size:0.78rem; color:var(--muted); margin-bottom:4px;">Source</label>
+                <select name="source" style="padding:8px; border-radius:6px; border:1px solid var(--border,#444); background:var(--surface2,#2a2a3e); color:inherit;">
+                    <option value="">All</option>
+                    <option value="agent_single" {% if filters.source == "agent_single" %}selected{% endif %}>Single</option>
+                    <option value="agent_bulk" {% if filters.source == "agent_bulk" %}selected{% endif %}>Bulk</option>
+                    <option value="api" {% if filters.source == "api" %}selected{% endif %}>API</option>
+                </select>
+            </div>
+            <div>
+                <label style="display:block; font-size:0.78rem; color:var(--muted); margin-bottom:4px;">GB Size</label>
+                <input type="text" name="gb_size" value="{{ filters.gb_size }}" placeholder="e.g. 1.00" style="padding:8px; border-radius:6px; border:1px solid var(--border,#444); background:var(--surface2,#2a2a3e); color:inherit; width:100px;">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+            <a href="{% url 'agent_refund_history' %}" class="btn btn-sm" style="border:1px solid var(--border,#444);">Clear</a>
+        </form>
+
+        <!-- History Table -->
+        <div class="card table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Recipient</th>
+                        <th>Network</th>
+                        <th>GB Size</th>
+                        <th>Source</th>
+                        <th>Amount</th>
+                        <th>Refunded At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in page_obj %}
+                    <tr>
+                        <td>{{ o.order_id }}</td>
+                        <td>{{ o.recipient }}</td>
+                        <td>{{ o.network }}</td>
+                        <td>{{ o.gb_package.gb_size|default:"-" }}</td>
+                        <td>{{ o.source }}</td>
+                        <td>GHS {{ o.price_paid|floatformat:2 }}</td>
+                        <td>{{ o.updated_at|date:"d M Y, H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px;">No refunds found for these filters.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div style="display:flex; gap:8px; margin-top:16px;">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-sm" style="border:1px solid var(--border,#444);">Previous</a>
+            {% endif %}
+            <span style="padding:6px 12px; font-size:0.85rem; color:var(--muted);">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="btn btn-sm" style="border:1px solid var(--border,#444);">Next</a>
+            {% endif %}
+        </div>
+    </main>
+</div>
+{% endblock %}

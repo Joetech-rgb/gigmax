@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Debt – Agent{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+        <h1 class="page-title"><i class="fa fa-file-invoice-dollar"></i> Debt Account</h1>
+
+        {% if messages %}{% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}{% endif %}
+
+        {% if not user.debt_page_access %}
+        {# ── NOT ACTIVATED — show request form ── #}
+        <div class="card" style="border-left:4px solid #FFA000; max-width:560px; margin-bottom:20px;">
+            <p class="section-title" style="color:#FFA000;">
+                <i class="fa fa-lock"></i> Debt Account Not Activated
+            </p>
+            <p style="color:var(--muted); font-size:0.9rem; line-height:1.7; margin-bottom:20px;">
+                The Debt feature lets you place orders even when your wallet balance is low.
+                Submit a request and Admin will manually review and activate your account.
+                Once activated, it will appear in your menu.
+            </p>
+
+            {% if already_requested %}
+            <div class="alert" style="background:rgba(255,160,0,0.08); border:1px solid rgba(255,160,0,0.4);
+                 color:#FFA000; border-radius:8px; padding:14px 18px; font-size:0.9rem;">
+                <i class="fa fa-clock"></i>
+                <strong>Request sent!</strong> Please wait — Admin will activate your account and it will show in your sidebar automatically.
+            </div>
+
+            {% else %}
+            <form method="POST" action="/agent/debt/request/">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Why do you need Debt Access?
+                        <span style="color:var(--muted); font-size:0.8rem;">(optional)</span>
+                    </label>
+                    <textarea name="reason" class="form-control" rows="3"
+                              placeholder="e.g. I run a shop and need to place large orders daily..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">
+                    <i class="fa fa-paper-plane"></i> Send Request to Admin
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        {% else %}
+        {# ── ACTIVATED — show debt dashboard ── #}
+        <div class="grid-3" style="margin-bottom:24px;">
+            <div class="stat-card" style="border-left:4px solid #f44336;">
+                <div class="stat-label">Current Debt</div>
+                <div class="stat-value" style="color:#f44336;">GHS {{ debt|floatformat:2 }}</div>
+                <div class="stat-sub">Outstanding balance</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Today's Debt</div>
+                <div class="stat-value">GHS {{ today_debt|default:"0.00"|floatformat:2 }}</div>
+                <div class="stat-sub">Incurred today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Debt All Time</div>
+                <div class="stat-value">GHS {{ total_debt|default:"0.00"|floatformat:2 }}</div>
+                <div class="stat-sub">Lifetime</div>
+            </div>
+        </div>
+
+        {% if debt > 0 %}
+        <div class="alert" style="background:rgba(244,67,54,0.08); border:1px solid rgba(244,67,54,0.3);
+             color:#f44336; border-radius:8px; padding:14px 18px; margin-bottom:20px;">
+            <i class="fa fa-triangle-exclamation"></i>
+            You have <strong>GHS {{ debt|floatformat:2 }}</strong> outstanding debt.
+            Any wallet top-up will deduct from debt first.
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <p class="section-title">Daily Debt History</p>
+            {% if debt_history %}
+            <table class="data-table">
+                <thead>
+                    <tr><th>Date</th><th>Incurred</th><th>Deducted</th><th>Net</th></tr>
+                </thead>
+                <tbody>
+                {% for row in debt_history %}
+                <tr>
+                    <td>{{ row.date }}</td>
+                    <td style="color:#f44336;">GHS {{ row.incurred|floatformat:2 }}</td>
+                    <td style="color:#00C853;">GHS {{ row.deducted|floatformat:2 }}</td>
+                    <td>GHS {{ row.net|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:var(--muted); font-size:0.9rem;">No debt history yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="card" style="margin-top:20px; border-left:4px solid #f44336;">
+            <p class="section-title" style="color:#f44336;">
+                <i class="fa fa-file-invoice-dollar"></i> Debt Clearance History
+            </p>
+            <p style="color:var(--muted); font-size:0.85rem; margin-bottom:16px;">
+                Every debt clearance from day one — amount cleared, what you owed before and after, and who processed it.
+            </p>
+            {% if debt_payments %}
+            <div style="overflow-x:auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date &amp; Time</th>
+                        <th>Amount Cleared</th>
+                        <th>Owed Before</th>
+                        <th>Owed After</th>
+                        <th>Note</th>
+                        <th>Cleared By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for payment in debt_payments %}
+                <tr>
+                    <td>{{ payment.created_at|date:"d M Y, H:i" }}</td>
+                    <td style="color:#00C853; font-weight:600;">GHS {{ payment.amount|floatformat:2 }}</td>
+                    <td style="color:#f44336;">{% if payment.balance_before is not None %}GHS {{ payment.balance_before|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td style="color:#f44336;">{% if payment.balance_after is not None %}GHS {{ payment.balance_after|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td style="color:var(--muted);">{{ payment.note|default:"-" }}</td>
+                    <td>{{ payment.cleared_by.full_name|default:"Admin" }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <p style="color:var(--muted); font-size:0.9rem;">No debt clearances recorded yet.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </main>
+</div>
+{% endblock %}

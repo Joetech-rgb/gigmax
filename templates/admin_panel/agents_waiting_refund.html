@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% block title %}Agents - Waiting & Refund Overview{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+        <h1 class="page-title"><i class="fa fa-users"></i> Agents - Waiting & Refund Overview</h1>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Summary Cards -->
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #FF6D00;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Total Waiting Orders</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#FF6D00;">{{ grand_waiting_count }}</div>
+                <div style="font-size:0.85rem; color:#FF6D00;">Agent Cost: GHS {{ grand_waiting_amount|floatformat:2 }}</div>
+                <div style="font-size:0.85rem; color:var(--muted);">Retail: GHS {{ grand_waiting_retail|floatformat:2 }}</div>
+            </div>
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #E91E63;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Total Refund Orders</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#E91E63;">{{ grand_refund_count }}</div>
+                <div style="font-size:0.85rem; color:#E91E63;">Agent Cost: GHS {{ grand_refund_amount|floatformat:2 }}</div>
+                <div style="font-size:0.85rem; color:var(--muted);">Retail: GHS {{ grand_refund_retail|floatformat:2 }}</div>
+                <div style="font-size:0.72rem; color:var(--muted); margin-top:6px;">As of {{ as_of|date:"d M Y, H:i" }}</div>
+            </div>
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid var(--primary);">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Total Agents</div>
+                <div style="font-size:1.8rem; font-weight:800; color:var(--primary);">{{ total_agents }}</div>
+            </div>
+            <div class="card" style="flex:1; min-width:160px; border-left:4px solid #00C853;">
+                <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Grand Total Amount</div>
+                <div style="font-size:1.8rem; font-weight:800; color:#00C853;">GHS {{ grand_total_amount|floatformat:2 }}</div>
+            </div>
+        </div>
+
+        {% csrf_token %}
+
+        <div class="card table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Phone</th>
+                        <th>Waiting Count</th>
+                        <th>Waiting Retail</th>
+                        <th>Waiting Agent Cost</th>
+                        <th>Refund Count</th>
+                        <th>Refund Retail</th>
+                        <th>Refund Agent Cost</th>
+                        <th>Today's Refunds</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td><a href="{% url 'admin_panel:agent_refund_history' row.agent.pk %}" style="color:var(--primary); text-decoration:underline;">{{ row.agent.full_name }}</a></td>
+                        <td>{{ row.agent.phone_number }}</td>
+                        <td style="color:#FF6D00; font-weight:600;">{{ row.waiting_count }}</td>
+                        <td>GHS {{ row.waiting_retail|floatformat:2 }}</td>
+                        <td style="color:#FF6D00;">GHS {{ row.waiting_amount|floatformat:2 }}</td>
+                        <td style="color:#E91E63; font-weight:600;">{{ row.refund_count }}</td>
+                        <td>GHS {{ row.refund_retail|floatformat:2 }}</td>
+                        <td style="color:#E91E63;">GHS {{ row.refund_amount|floatformat:2 }}</td>
+                        <td style="color:#E91E63; font-weight:600;">
+                            {{ row.today_refund_count }}
+                            {% if row.today_refund_count > 0 %}<br><span style="font-weight:400; font-size:0.85rem;">GHS {{ row.today_refund_amount|floatformat:2 }}</span>
+                            <br><a href="#" class="today-detail-btn" data-agent-id="{{ row.agent.pk }}" data-agent-name="{{ row.agent.full_name }}" style="font-size:0.8rem; color:var(--primary); text-decoration:underline;">View Detail</a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.waiting_count > 0 %}
+                            <button type="button" class="btn btn-danger btn-sm convert-btn"
+                                    data-agent-id="{{ row.agent.pk }}"
+                                    data-agent-name="{{ row.agent.full_name }}"
+                                    data-waiting-count="{{ row.waiting_count }}">
+                                Convert to Refund
+                            </button>
+                            {% else %}
+                            <span style="color:var(--muted); font-size:0.85rem;">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="10" style="text-align:center; color:var(--muted); padding:32px;">No agents with Waiting or Refund orders.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="todayDetailModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:999; align-items:center; justify-content:center;">
+            <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; max-width:600px; width:90%; max-height:80vh; overflow-y:auto;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+                    <h3 id="todayDetailAgentName" style="margin:0; color:var(--text);"></h3>
+                    <button onclick="document.getElementById('todayDetailModal').style.display='none';" style="background:none; border:none; color:var(--muted); font-size:1.3rem; cursor:pointer;">&times;</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+                    <label style="font-size:0.8rem; color:var(--muted);">From
+                        <input type="date" id="adminRefundDateFromInput" value="2026-08-26"
+                               style="background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; font-family:inherit; margin-left:4px;">
+                    </label>
+                    <label style="font-size:0.8rem; color:var(--muted);">To
+                        <input type="date" id="adminRefundDateToInput"
+                               style="background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 10px; font-family:inherit; margin-left:4px;">
+                    </label>
+                </div>
+                <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">Total Refunded</div>
+                        <div id="adminRefundTotalAmount" style="font-size:1.05rem; font-weight:700; color:#E91E63;">GHS 0.00</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">Debt Reduced</div>
+                        <div id="adminRefundTotalDebtReduced" style="font-size:1.05rem; font-weight:700; color:#E91E63;">GHS 0.00</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">Wallet Credited</div>
+                        <div id="adminRefundTotalWalletCredited" style="font-size:1.05rem; font-weight:700; color:#00C853;">GHS 0.00</div>
+                    </div>
+                </div>
+                <div id="todayDetailBody" style="color:var(--muted);">Loading...</div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+let currentDetailAgentId = null;
+
+function renderAdminRefundDetail(data) {
+    document.getElementById('adminRefundTotalAmount').textContent = 'GHS ' + parseFloat(data.total_amount).toFixed(2);
+    document.getElementById('adminRefundTotalDebtReduced').textContent = 'GHS ' + parseFloat(data.total_debt_reduced).toFixed(2);
+    document.getElementById('adminRefundTotalWalletCredited').textContent = 'GHS ' + parseFloat(data.total_wallet_credited).toFixed(2);
+
+    const body = document.getElementById('todayDetailBody');
+    if (!data.refunds || data.refunds.length === 0) {
+        body.innerHTML = '<p>No refunds on this day.</p>';
+        return;
+    }
+    body.innerHTML = data.refunds.map(r => {
+        let lines = '';
+        if (r.debt_reduced) {
+            lines += `<div><i class="fa fa-arrow-down" style="color:#FF4081; margin-right:6px;"></i><strong>GHS ${parseFloat(r.debt_reduced).toFixed(2)}</strong> reduced from debt &nbsp;<span style="color:var(--text);">(GHS ${parseFloat(r.debt_before).toFixed(2)} &rarr; GHS ${parseFloat(r.debt_after).toFixed(2)})</span></div>`;
+        }
+        if (r.wallet_credited) {
+            lines += `<div><i class="fa fa-arrow-up" style="color:#00C853; margin-right:6px;"></i><strong>GHS ${parseFloat(r.wallet_credited).toFixed(2)}</strong> credited to wallet &nbsp;<span style="color:var(--text);">(GHS ${parseFloat(r.wallet_before).toFixed(2)} &rarr; GHS ${parseFloat(r.wallet_after).toFixed(2)})</span></div>`;
+        }
+        if (!r.debt_reduced && !r.wallet_credited) {
+            lines = `<div style="color:var(--muted);">${r.description}</div>`;
+        }
+        return `<div style="padding:10px 0; border-bottom:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--muted); margin-bottom:6px;">
+                <span>${r.time} &middot; <strong style="color:#E91E63;">${r.source_label}</strong></span>
+                <span style="font-weight:600; color:#E91E63;">GHS ${parseFloat(r.amount).toFixed(2)}</span>
+            </div>
+            <div style="font-size:0.85rem; background:rgba(233,30,99,0.08); border:1px solid rgba(233,30,99,0.2); border-radius:8px; padding:10px 12px; line-height:1.7;">${lines}</div>
+        </div>`;
+    }).join('');
+}
+
+async function loadAdminRefundDetail(agentId, fromStr, toStr) {
+    const body = document.getElementById('todayDetailBody');
+    body.innerHTML = 'Loading...';
+    try {
+        const resp = await fetch(`/admin-panel/agents-waiting-refund/${agentId}/today-detail/?date_from=${fromStr}&date_to=${toStr}`);
+        const data = await resp.json();
+        renderAdminRefundDetail(data);
+    } catch (err) {
+        body.innerHTML = '<p style="color:#FF4081;">Failed to load detail.</p>';
+    }
+}
+
+function reloadAdminRefundRange() {
+    if (currentDetailAgentId) {
+        const fromStr = document.getElementById('adminRefundDateFromInput').value;
+        const toStr   = document.getElementById('adminRefundDateToInput').value;
+        loadAdminRefundDetail(currentDetailAgentId, fromStr, toStr);
+    }
+}
+document.getElementById('adminRefundDateFromInput').addEventListener('change', reloadAdminRefundRange);
+document.getElementById('adminRefundDateToInput').addEventListener('change', reloadAdminRefundRange);
+
+document.querySelectorAll('.today-detail-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const agentId = this.dataset.agentId;
+        const agentName = this.dataset.agentName;
+        currentDetailAgentId = agentId;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('adminRefundDateFromInput').value = todayStr;
+        document.getElementById('adminRefundDateToInput').value = todayStr;
+
+        document.getElementById('todayDetailAgentName').textContent = agentName + " — Refund Statement";
+        document.getElementById('todayDetailModal').style.display = 'flex';
+
+        await loadAdminRefundDetail(agentId, todayStr, todayStr);
+    });
+});
+</script>
+
+<script>
+document.querySelectorAll('.convert-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+        const agentId = this.dataset.agentId;
+        const agentName = this.dataset.agentName;
+        const count = this.dataset.waitingCount;
+
+        const confirmed = confirm(
+            'Have you actually paid ' + agentName + ' for all ' + count + ' Waiting orders? ' +
+            'This marks them Refunded AND logs them as paid. Only confirm if payment has already been sent.'
+        );
+        if (!confirmed) return;
+
+        this.disabled = true;
+        const originalText = this.textContent;
+        this.textContent = 'Processing...';
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+            const form = new FormData();
+            form.append('confirm', '1');
+            const res = await fetch(`/admin-panel/agents-waiting-refund/${agentId}/convert/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: form,
+            });
+            const rawText = await res.text();
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseErr) {
+                alert('Server error (status ' + res.status + '). Raw response: ' + rawText.slice(0, 300));
+                this.disabled = false;
+                this.textContent = originalText;
+                return;
+            }
+            if (!res.ok) {
+                alert('Error (status ' + res.status + '): ' + (data.error || JSON.stringify(data)));
+                this.disabled = false;
+                this.textContent = originalText;
+                return;
+            }
+            alert('Updated ' + data.updated + ' orders to Refunded for ' + data.agent + '.');
+            window.location.reload();
+        } catch (err) {
+            alert('Network/JS error: ' + err.message);
+            this.disabled = false;
+            this.textContent = originalText;
+        }
+    });
+});
+</script>
+{% endblock %}

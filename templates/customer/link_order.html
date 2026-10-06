@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="SK Plug">
+    <meta property="og:title" content="SK Plug - Buy Data Bundles">
+    <meta property="og:description" content="Buy MTN, Telecel and AT data bundles instantly. Fast delivery, best prices.">
+    <meta property="og:image" content="https://skdataplug.com/static/img/logo.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:url" content="https://skdataplug.com">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://skdataplug.com/static/img/logo.png">
+    <title>{{ shop_name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary:   {{ accent }};
+            --dark:      {{ accent_dark }};
+            --bg:        #f4f7ff;
+            --card:      #ffffff;
+            --text:      #0d1a2e;
+            --muted:     #6b7f9e;
+            --border:    #dce8f8;
+            --radius:    16px;
+            --radius-sm: 10px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .sf-header {
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            padding: 40px 24px 60px;
+            text-align: center;
+        }
+        .sf-avatar {
+            width: 72px; height: 72px; border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: 3px solid rgba(255,255,255,0.4);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 800; color: #fff;
+            margin: 0 auto 16px;
+        }
+        .sf-name    { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+        .sf-tagline { font-size: 13px; color: rgba(255,255,255,0.75); }
+        .sf-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 14px;
+            background: rgba(255,255,255,0.18);
+            border: 1px solid rgba(255,255,255,0.35);
+            color: #fff; font-size: 12px; font-weight: 600;
+            padding: 5px 14px; border-radius: 20px;
+        }
+
+        .sf-body {
+            max-width: 480px; margin: -32px auto 0;
+            padding: 0 16px 80px; position: relative;
+        }
+
+        .alert {
+            padding: 12px 16px; border-radius: var(--radius-sm);
+            font-size: 14px; margin-bottom: 14px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .alert-error   { background: #fdecea; color: #922b21; border: 1px solid #f5b7b1; }
+        .alert-success { background: #e6f9f0; color: #0a6640; border: 1px solid #a3dfc0; }
+        .alert-info    { background: #e8f4fd; color: #1a5276; border: 1px solid #a9cce3; }
+        .alert-warning { background: #fff3e0; color: #7f3300; border: 1px solid #ffcc80; }
+
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 22px 20px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        }
+        .card-title {
+            font-size: 11px; font-weight: 700; color: var(--primary);
+            text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .field-label {
+            display: block; font-size: 13px; font-weight: 600;
+            color: var(--muted); margin-bottom: 8px;
+        }
+
+        input[type="tel"], select {
+            width: 100%; padding: 13px 16px;
+            border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+            font-size: 15px; color: var(--text); background: #fff;
+            outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+            appearance: none; -webkit-appearance: none;
+        }
+        input[type="tel"]:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26,79,214,0.1);
+        }
+        .select-wrap { position: relative; }
+        .select-wrap::after {
+            content: '\f107'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+            position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--muted); pointer-events: none; font-size: 14px;
+        }
+
+        .pkg-price-tag {
+            display: none;
+            margin-top: 12px;
+            background: #eef3ff; border: 1px solid var(--border);
+            color: var(--primary); font-size: 22px; font-weight: 800;
+            padding: 12px 20px; border-radius: var(--radius-sm);
+            width: 100%; text-align: center;
+        }
+
+        .summary {
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            border-radius: var(--radius); padding: 16px 20px;
+            display: none;
+            align-items: center; justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .summary.show { display: flex; }
+        .sum-label { font-size: 11px; color: rgba(255,255,255,0.7); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .sum-val   { font-size: 16px; font-weight: 700; color: #fff; }
+
+        .btn-buy {
+            width: 100%; padding: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--dark));
+            color: #fff; border: none; border-radius: var(--radius-sm);
+            font-size: 17px; font-weight: 800; cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 4px 16px rgba(26,79,214,0.3);
+            margin-top: 6px;
+        }
+        .btn-buy:hover   { opacity: 0.92; }
+        .btn-buy:active  { transform: scale(0.98); }
+        .btn-buy:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        .success-wrap { text-align: center; padding: 48px 24px; }
+        .success-icon {
+            width: 80px; height: 80px; border-radius: 50%; background: #e6f9f0;
+            display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+        }
+        .success-icon i { font-size: 36px; color: #0a6640; }
+        .success-title  { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+        .success-sub    { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+        .order-id {
+            display: inline-block; margin-top: 14px;
+            background: #f0f4ff; border: 1px solid var(--border);
+            padding: 8px 18px; border-radius: 20px;
+            font-size: 13px; font-weight: 700; color: var(--primary);
+        }
+
+        .spinner {
+            display: inline-block; width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .sf-footer {
+            text-align: center; font-size: 12px; color: var(--muted);
+            padding: 20px 16px; display: flex; align-items: center;
+            justify-content: center; gap: 6px;
+        }
+
+        /* MTN toast */
+        #mtn-toast {
+            display: none;
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: #FF6D00; color: #fff; padding: 12px 24px; border-radius: 12px;
+            font-weight: 700; font-size: 14px; z-index: 9999;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3); transition: opacity 0.3s;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 400px) {
+            .sf-body { padding: 0 12px 80px; }
+        }
+    </style>
+</head>
+<body>
+
+{# ── MTN Toast ── #}
+<div id="mtn-toast">MTN orders are temporarily unavailable</div>
+
+<div class="sf-header">
+    <div class="sf-avatar">{{ initials }}</div>
+    <div class="sf-name">{{ shop_name }}</div>
+    <div class="sf-tagline">Fast &amp; reliable mobile data</div>
+    <span class="sf-badge"><i class="fa fa-shield-halved"></i> Verified Data Reseller</span>
+</div>
+
+<div class="sf-body">
+
+    {% if success %}
+    <div class="card success-wrap">
+        <div class="success-icon"><i class="fa fa-check"></i></div>
+        <p class="success-title">Order Placed!</p>
+        <p class="success-sub">Your data bundle is being processed.</p>
+        <p class="success-sub">You will receive it shortly on your number.</p>
+        <span class="order-id"><i class="fa fa-receipt"></i> {{ order.order_id }}</span>
+    </div>
+
+    {% else %}
+
+    {% if not mtn_enabled %}
+    <div class="alert alert-warning">
+        <i class="fa fa-triangle-exclamation"></i>
+        MTN is temporarily unavailable. Telecel and AT bundles are still active.
+    </div>
+    {% endif %}
+
+    {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}">
+        <i class="fa {% if message.tags == 'error' %}fa-circle-exclamation{% elif message.tags == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
+        {{ message }}
+    </div>
+    {% endfor %}
+
+    <form method="post" id="orderForm" autocomplete="off">
+        {% csrf_token %}
+
+        <!-- Phone -->
+        <div class="card">
+            <p class="card-title"><i class="fa fa-mobile-screen"></i> Recipient Number</p>
+            <label class="field-label">Ghana number to receive data</label>
+            <input type="tel" name="phone" id="recipient"
+                   placeholder="e.g. 0244 123 456"
+                   maxlength="10" pattern="0[0-9]{9}" required
+                   autocomplete="off"
+                   value="{{ recipient|default:'' }}">
+        </div>
+
+        <!-- Network dropdown -->
+        <div class="card">
+            <p class="card-title"><i class="fa fa-signal"></i> Select Network</p>
+            <label class="field-label">Choose your network</label>
+            <div class="select-wrap">
+                <select id="networkSelect" name="network" onchange="filterPackages(this.value)" autocomplete="off">
+                    <option value="">— Choose network —</option>
+                    {% for net in networks %}
+                    <option value="{{ net.key }}" {% if selected_network == net.key %}selected{% endif %}>
+                        {{ net.label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Package dropdown -->
+        <div class="card" id="packageCard" style="display:none;">
+            <p class="card-title"><i class="fa fa-database"></i> Select Package</p>
+            <label class="field-label">Choose a data bundle</label>
+            <div class="select-wrap">
+                <select name="package_id" id="packageSelect" onchange="updatePrice(this)" autocomplete="off" required>
+                    <option value="">— Pick a bundle —</option>
+                    {% for lp in all_packages %}
+                    <option value="{{ lp.bundle.id }}"
+                            data-price="{{ lp.retail_price }}"
+                            data-network="{{ lp.bundle.network }}"
+                            data-gb="{{ lp.bundle.gb_size }}"
+                            data-netlabel="{{ lp.bundle.get_network_display }}">
+                        {{ lp.bundle.gb_size }}GB — GHS {{ lp.retail_price }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="pkg-price-tag" id="priceTag"></div>
+        </div>
+
+        <!-- Summary strip -->
+        <div class="summary" id="summary">
+            <div>
+                <div class="sum-label">Bundle</div>
+                <div class="sum-val" id="sumBundle">—</div>
+            </div>
+            <div>
+                <div class="sum-label">Network</div>
+                <div class="sum-val" id="sumNetwork">—</div>
+            </div>
+            <div>
+                <div class="sum-label">Total</div>
+                <div class="sum-val" id="sumPrice">—</div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-buy" id="submitBtn">
+            <i class="fa fa-lock"></i> Pay Securely
+        </button>
+
+    </form>
+    {% endif %}
+</div>
+
+<div class="sf-footer">
+    <i class="fa fa-shield-halved"></i> Secured by Paystack &nbsp;·&nbsp; Instant delivery
+</div>
+
+<script>
+    const MTN_ENABLED = {{ mtn_enabled|yesno:"true,false" }};
+
+    const ALL_PACKAGES = [
+        {% for lp in all_packages %}
+        {
+            id      : "{{ lp.bundle.id }}",
+            gb      : "{{ lp.bundle.gb_size }}",
+            network : "{{ lp.bundle.network }}",
+            netLabel: "{{ lp.bundle.get_network_display }}",
+            price   : "{{ lp.retail_price }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function showMtnToast() {
+        const t = document.getElementById('mtn-toast');
+        t.style.display = 'block';
+        t.style.opacity = '1';
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => {
+            t.style.opacity = '0';
+            setTimeout(() => { t.style.display = 'none'; }, 300);
+        }, 3000);
+    }
+
+    function filterPackages(network) {
+        // ── MTN block ──────────────────────────────────────────────────
+        if (network === 'MTN' && !MTN_ENABLED) {
+            document.getElementById('networkSelect').value = '';
+            showMtnToast();
+            document.getElementById('packageCard').style.display = 'none';
+            document.getElementById('summary').classList.remove('show');
+            document.getElementById('priceTag').style.display = 'none';
+            return;
+        }
+        // ───────────────────────────────────────────────────────────────
+
+        const card = document.getElementById('packageCard');
+        const sel  = document.getElementById('packageSelect');
+
+        sel.value = '';
+        document.getElementById('priceTag').style.display = 'none';
+        document.getElementById('summary').classList.remove('show');
+
+        if (!network) { card.style.display = 'none'; return; }
+
+        sel.innerHTML = '<option value="">— Pick a bundle —</option>';
+        ALL_PACKAGES
+            .filter(p => p.network === network)
+            .forEach(p => {
+                const opt = document.createElement('option');
+                opt.value              = p.id;
+                opt.dataset.price      = p.price;
+                opt.dataset.network    = p.network;
+                opt.dataset.gb         = p.gb;
+                opt.dataset.netlabel   = p.netLabel;
+                opt.textContent        = `${p.gb}GB — GHS ${p.price}`;
+                sel.appendChild(opt);
+            });
+
+        card.style.display = sel.options.length > 1 ? 'block' : 'none';
+    }
+
+    function updatePrice(sel) {
+        const opt  = sel.options[sel.selectedIndex];
+        const tag  = document.getElementById('priceTag');
+        const sum  = document.getElementById('summary');
+
+        if (!opt.value) {
+            tag.style.display = 'none';
+            sum.classList.remove('show');
+            return;
+        }
+
+        tag.textContent   = `GHS ${opt.dataset.price}`;
+        tag.style.display = 'block';
+
+        document.getElementById('sumBundle').textContent  = `${opt.dataset.gb}GB`;
+        document.getElementById('sumNetwork').textContent = opt.dataset.netlabel;
+        document.getElementById('sumPrice').textContent   = `GHS ${opt.dataset.price}`;
+        sum.classList.add('show');
+    }
+
+    document.getElementById('orderForm').addEventListener('submit', function(e) {
+        const phone   = document.getElementById('recipient').value.trim();
+        const network = document.getElementById('networkSelect').value;
+        const pkg     = document.getElementById('packageSelect').value;
+
+        if (!phone || phone.length !== 10 || !phone.startsWith('0')) {
+            e.preventDefault();
+            alert('Please enter a valid 10-digit Ghana number starting with 0.');
+            return;
+        }
+        if (!network) { e.preventDefault(); alert('Please select a network.'); return; }
+
+        // ── MTN safety net ─────────────────────────────────────────────
+        if (network === 'MTN' && !MTN_ENABLED) {
+            e.preventDefault();
+            showMtnToast();
+            return;
+        }
+        // ───────────────────────────────────────────────────────────────
+
+        if (!pkg) { e.preventDefault(); alert('Please select a data package.'); return; }
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled  = true;
+        btn.innerHTML = '<span class="spinner"></span> Redirecting to payment...';
+    });
+
+    // Init if network already selected
+    const preNet = document.getElementById('networkSelect').value;
+    if (preNet) filterPackages(preNet);
+</script>
+
+</body>
+</html>

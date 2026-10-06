@@ -1,0 +1,458 @@
+{% extends 'base.html' %}
+{% block title %}Agent Roles — SK Plug{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:28px;">
+            <h1 class="page-title" style="margin:0;">⚙️ Agent Roles</h1>
+            <button onclick="document.getElementById('create-modal').style.display='flex'"
+                    style="display:flex; align-items:center; gap:8px;
+                           background:var(--primary,#6366f1); border:none; color:#fff;
+                           border-radius:10px; padding:10px 20px; font-weight:700;
+                           font-size:0.9rem; cursor:pointer;">
+                + Create Custom Role
+            </button>
+        </div>
+
+        {% if messages %}
+            {% for msg in messages %}
+            <div style="padding:12px 16px; border-radius:8px; margin-bottom:16px;
+                        background:{% if msg.tags == 'error' %}rgba(244,67,54,0.12){% else %}rgba(0,200,83,0.12){% endif %};
+                        border:1px solid {% if msg.tags == 'error' %}rgba(244,67,54,0.3){% else %}rgba(0,200,83,0.3){% endif %};
+                        color:{% if msg.tags == 'error' %}#f44336{% else %}#00c853{% endif %}; font-size:0.9rem;">
+                {{ msg }}
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        {# ── Hardcoded Tiers Info Card ── #}
+        <div class="card" style="margin-bottom:24px; border-color:rgba(99,102,241,0.3);">
+            <p class="section-title" style="margin-bottom:14px;">📊 Built-in Hardcoded Tiers</p>
+            <p style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">
+                These tiers use prices set directly on each bundle package. They cannot be deleted.
+            </p>
+            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                {% for tier, label in builtin_tiers %}
+                <div style="display:flex; align-items:center; gap:8px;
+                            background:var(--surface2,#2a2a3e); border:1px solid var(--border,#333);
+                            border-radius:8px; padding:8px 14px;">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#6366f1;display:inline-block;"></span>
+                    <span style="font-size:0.85rem; font-weight:600;">{{ label }}</span>
+                    <span style="font-size:0.75rem; color:var(--muted);">({{ tier }})</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Custom Roles ── #}
+        <div class="card" style="margin-bottom:24px; border-color:rgba(255,193,7,0.3);">
+            <p class="section-title" style="margin-bottom:16px;">🎯 Custom Roles
+                <span style="font-size:0.8rem; font-weight:400; color:var(--muted); margin-left:8px;">
+                    ({{ roles|length }} role{{ roles|length|pluralize }})
+                </span>
+            </p>
+
+            {% if not roles %}
+            <div style="text-align:center; padding:40px 20px; color:var(--muted);">
+                <div style="font-size:2rem; margin-bottom:8px;">🗂️</div>
+                <p style="margin:0; font-size:0.9rem;">No custom roles yet. Create one above.</p>
+            </div>
+            {% else %}
+            <div style="display:grid; gap:16px;">
+                {% for role in roles %}
+                <div style="background:var(--surface2,#2a2a3e); border:1px solid var(--border,#333);
+                            border-radius:12px; padding:20px;">
+
+                    {# Role header #}
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="width:40px;height:40px;border-radius:10px;
+                                        background:linear-gradient(135deg,#6366f1,#8b5cf6);
+                                        display:flex;align-items:center;justify-content:center;
+                                        font-size:1.1rem;font-weight:800;color:#fff;">
+                                {{ role.name|first|upper }}
+                            </div>
+                            <div>
+                                <div style="font-weight:700; font-size:1rem;">{{ role.name }}</div>
+                                <div style="font-size:0.78rem; color:var(--muted);">
+                                    slug: <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;">{{ role.slug }}</code>
+                                    {% if role.description %} &mdash; {{ role.description }}{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            {% if role.has_api_access %}
+                            <span style="font-size:0.72rem;padding:3px 8px;border-radius:20px;
+                                         background:rgba(0,200,83,0.15);color:#00c853;font-weight:600;">API</span>
+                            {% endif %}
+                            {% if role.has_debt_access %}
+                            <span style="font-size:0.72rem;padding:3px 8px;border-radius:20px;
+                                         background:rgba(255,152,0,0.15);color:#ff9800;font-weight:600;">DEBT</span>
+                            {% endif %}
+                            <span style="font-size:0.72rem;padding:3px 8px;border-radius:20px;
+                                         background:rgba(99,102,241,0.15);color:#6366f1;font-weight:600;">
+                                {{ role.max_links }} link{{ role.max_links|pluralize }}
+                            </span>
+                            <button onclick="togglePrices('prices-{{ role.id }}')"
+                                    style="font-size:0.78rem;padding:5px 12px;border-radius:7px;
+                                           border:1px solid var(--border,#444);background:transparent;
+                                           color:inherit;cursor:pointer;">
+                                📋 Prices ({{ role.prices.count }})
+                            </button>
+                            <button onclick="openEditRole('{{ role.id }}','{{ role.name }}','{{ role.slug }}','{{ role.description }}','{{ role.max_links }}','{{ role.has_api_access|yesno:"true,false" }}','{{ role.has_debt_access|yesno:"true,false" }}')"
+                                    style="font-size:0.78rem;padding:5px 12px;border-radius:7px;
+                                           border:1px solid rgba(99,102,241,0.4);background:rgba(99,102,241,0.1);
+                                           color:#6366f1;cursor:pointer;">
+                                ✏️ Edit
+                            </button>
+                            <form method="post" style="display:inline;"
+                                  onsubmit="return confirm('Delete role {{ role.name }}? Agents on this role will lose custom pricing.')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="role_id" value="{{ role.id }}">
+                                <button type="submit"
+                                        style="font-size:0.78rem;padding:5px 12px;border-radius:7px;
+                                               border:1px solid rgba(244,67,54,0.4);background:rgba(244,67,54,0.1);
+                                               color:#f44336;cursor:pointer;">
+                                    🗑 Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    {# Agents on this role #}
+                    {% with role_agents=role.users.all %}
+                    {% if role_agents %}
+                    <div style="margin-bottom:12px; padding:10px 14px; border-radius:8px;
+                                background:rgba(0,0,0,0.2); border:1px solid var(--border,#333);">
+                        <div style="font-size:0.75rem; color:var(--muted); font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Assigned Agents</div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            {% for agent in role_agents %}
+                            <span style="font-size:0.78rem;padding:3px 10px;border-radius:20px;
+                                         background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25);color:inherit;">
+                                {{ agent.full_name }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+
+                    {# Bundle prices (collapsible) #}
+                    <div id="prices-{{ role.id }}" style="display:none;">
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="set_prices">
+                            <input type="hidden" name="role_id" value="{{ role.id }}">
+                            <div style="font-size:0.78rem;color:var(--muted);font-weight:600;
+                                        text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">
+                                Bundle Prices — leave blank to inherit default tier pricing
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:14px;">
+                                {% for bundle in bundles %}
+                                {% with existing=role.prices.all %}
+                                <div style="background:rgba(0,0,0,0.2);border:1px solid var(--border,#333);
+                                            border-radius:8px;padding:10px 12px;">
+                                    <div style="font-size:0.78rem;font-weight:600;margin-bottom:4px;">
+                                        {{ bundle.network }} {{ bundle.gb_size }}GB
+                                    </div>
+                                    <div style="font-size:0.72rem;color:var(--muted);margin-bottom:6px;">
+                                        Base: GHS {{ bundle.base_price }}
+                                    </div>
+                                    <input type="number" step="0.01" min="0"
+                                           name="price_{{ bundle.id }}"
+                                           placeholder="e.g. {{ bundle.small_agent_price }}"
+                                           value="{% for p in existing %}{% if p.bundle_id == bundle.id %}{{ p.price }}{% endif %}{% endfor %}"
+                                           style="width:100%;padding:6px 8px;border-radius:6px;
+                                                  border:1px solid var(--border,#444);
+                                                  background:var(--surface,#1e1e2e);
+                                                  color:inherit;font-size:0.85rem;box-sizing:border-box;">
+                                </div>
+                                {% endwith %}
+                                {% endfor %}
+                            </div>
+                            <button type="submit"
+                                    style="padding:8px 20px;border-radius:8px;border:none;
+                                           background:var(--primary,#6366f1);color:#fff;
+                                           font-weight:700;font-size:0.85rem;cursor:pointer;">
+                                💾 Save Prices
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        {# ── Assign Role to Agent ── #}
+        <div class="card" style="margin-bottom:24px; border-color:rgba(33,150,243,0.3);">
+            <p class="section-title" style="margin-bottom:16px;">👤 Assign Custom Role to Agent</p>
+            <form method="post" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="assign_role">
+                <div style="flex:1; min-width:200px;">
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Agent</label>
+                    <select name="user_id" required
+                            style="width:100%;padding:9px 12px;border-radius:8px;
+                                   border:1px solid var(--border,#444);
+                                   background:var(--surface2,#2a2a3e);color:inherit;font-size:0.9rem;">
+                        <option value="">— Select agent —</option>
+                        {% for agent in agents %}
+                        <option value="{{ agent.id }}">
+                            {{ agent.full_name }} ({{ agent.get_role_display }}){% if agent.custom_role %} → {{ agent.custom_role.name }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="flex:1; min-width:200px;">
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Custom Role</label>
+                    <select name="role_id"
+                            style="width:100%;padding:9px 12px;border-radius:8px;
+                                   border:1px solid var(--border,#444);
+                                   background:var(--surface2,#2a2a3e);color:inherit;font-size:0.9rem;">
+                        <option value="">— Remove custom role —</option>
+                        {% for role in roles %}
+                        <option value="{{ role.id }}">{{ role.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit"
+                        style="padding:9px 22px;border-radius:8px;border:none;
+                               background:#2196f3;color:#fff;font-weight:700;
+                               font-size:0.9rem;cursor:pointer;white-space:nowrap;">
+                    Assign Role
+                </button>
+            </form>
+
+            {# Current assignments table #}
+            {% with assigned=agents|dictsort:"full_name" %}
+            {% if assigned %}
+            <div style="margin-top:20px; overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border,#333);">
+                            <th style="text-align:left;padding:8px 12px;color:var(--muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;">Agent</th>
+                            <th style="text-align:left;padding:8px 12px;color:var(--muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;">Base Role</th>
+                            <th style="text-align:left;padding:8px 12px;color:var(--muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;">Custom Role</th>
+                            <th style="text-align:left;padding:8px 12px;color:var(--muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for agent in assigned %}
+                        {% if agent.custom_role %}
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+                            <td style="padding:10px 12px;font-weight:600;">{{ agent.full_name }}</td>
+                            <td style="padding:10px 12px;color:var(--muted);">{{ agent.get_role_display }}</td>
+                            <td style="padding:10px 12px;">
+                                <span style="background:rgba(99,102,241,0.15);color:#6366f1;
+                                             border-radius:20px;padding:3px 10px;font-size:0.78rem;font-weight:600;">
+                                    {{ agent.custom_role.name }}
+                                </span>
+                            </td>
+                            <td style="padding:10px 12px;">
+                                <form method="post" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="assign_role">
+                                    <input type="hidden" name="user_id" value="{{ agent.id }}">
+                                    <input type="hidden" name="role_id" value="">
+                                    <button type="submit"
+                                            style="font-size:0.75rem;padding:3px 10px;border-radius:6px;
+                                                   border:1px solid rgba(244,67,54,0.3);
+                                                   background:rgba(244,67,54,0.08);color:#f44336;cursor:pointer;">
+                                        Remove
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            {% endwith %}
+        </div>
+
+    </main>
+</div>
+
+{# ── Create Role Modal ── #}
+<div id="create-modal"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6);
+            z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:var(--surface,#1e1e2e); border:1px solid var(--border,#333);
+                border-radius:16px; padding:32px; width:100%; max-width:520px;
+                box-shadow:0 20px 60px rgba(0,0,0,0.5); max-height:90vh; overflow-y:auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+            <h3 style="margin:0; font-size:1.1rem;">Create Custom Role</h3>
+            <button onclick="document.getElementById('create-modal').style.display='none'"
+                    style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;">×</button>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create">
+
+            <div style="display:grid; gap:16px;">
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Role Name *</label>
+                    <input type="text" name="name" required placeholder="e.g. Gold Agent"
+                           style="width:100%;padding:10px 12px;border-radius:8px;
+                                  border:1px solid var(--border,#444);
+                                  background:var(--surface2,#2a2a3e);color:inherit;
+                                  font-size:0.9rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Slug * <span style="font-weight:400;">(unique, no spaces)</span></label>
+                    <input type="text" name="slug" required placeholder="e.g. gold_agent"
+                           style="width:100%;padding:10px 12px;border-radius:8px;
+                                  border:1px solid var(--border,#444);
+                                  background:var(--surface2,#2a2a3e);color:inherit;
+                                  font-size:0.9rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Description</label>
+                    <input type="text" name="description" placeholder="Optional short description"
+                           style="width:100%;padding:10px 12px;border-radius:8px;
+                                  border:1px solid var(--border,#444);
+                                  background:var(--surface2,#2a2a3e);color:inherit;
+                                  font-size:0.9rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Max Links</label>
+                    <input type="number" name="max_links" value="3" min="1" max="20"
+                           style="width:100%;padding:10px 12px;border-radius:8px;
+                                  border:1px solid var(--border,#444);
+                                  background:var(--surface2,#2a2a3e);color:inherit;
+                                  font-size:0.9rem;box-sizing:border-box;">
+                </div>
+                <div style="display:flex; gap:24px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;">
+                        <input type="checkbox" name="has_api_access" style="width:16px;height:16px;">
+                        API Access
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;">
+                        <input type="checkbox" name="has_debt_access" style="width:16px;height:16px;">
+                        Debt Access
+                    </label>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;">
+                <button type="button" onclick="document.getElementById('create-modal').style.display='none'"
+                        style="padding:10px 20px;border-radius:8px;border:1px solid var(--border,#444);
+                               background:transparent;color:inherit;cursor:pointer;font-size:0.9rem;">
+                    Cancel
+                </button>
+                <button type="submit"
+                        style="padding:10px 24px;border-radius:8px;border:none;
+                               background:var(--primary,#6366f1);color:#fff;
+                               font-weight:700;font-size:0.9rem;cursor:pointer;">
+                    Create Role
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ── Edit Role Modal ── #}
+<div id="edit-modal"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6);
+            z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:var(--surface,#1e1e2e); border:1px solid var(--border,#333);
+                border-radius:16px; padding:32px; width:100%; max-width:520px;
+                box-shadow:0 20px 60px rgba(0,0,0,0.5); max-height:90vh; overflow-y:auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+            <h3 style="margin:0; font-size:1.1rem;">Edit Role</h3>
+            <button onclick="document.getElementById('edit-modal').style.display='none'"
+                    style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;">×</button>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="role_id" id="edit-role-id">
+            <div style="display:grid; gap:16px;">
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Role Name *</label>
+                    <input type="text" name="name" id="edit-name" required
+                           style="width:100%;padding:10px 12px;border-radius:8px;
+                                  border:1px solid var(--border,#444);
+                                  background:var(--surface2,#2a2a3e);color:inherit;
+                                  font-size:0.9rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Slug *</label>
+                    <input type="text" name="slug" id="edit-slug" required
+                           style="width:100%;padding:10px 12px;border-radius:8px;
+                                  border:1px solid var(--border,#444);
+                                  background:var(--surface2,#2a2a3e);color:inherit;
+                                  font-size:0.9rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Description</label>
+                    <input type="text" name="description" id="edit-description"
+                           style="width:100%;padding:10px 12px;border-radius:8px;
+                                  border:1px solid var(--border,#444);
+                                  background:var(--surface2,#2a2a3e);color:inherit;
+                                  font-size:0.9rem;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Max Links</label>
+                    <input type="number" name="max_links" id="edit-max-links" min="1" max="20"
+                           style="width:100%;padding:10px 12px;border-radius:8px;
+                                  border:1px solid var(--border,#444);
+                                  background:var(--surface2,#2a2a3e);color:inherit;
+                                  font-size:0.9rem;box-sizing:border-box;">
+                </div>
+                <div style="display:flex; gap:24px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;">
+                        <input type="checkbox" name="has_api_access" id="edit-api" style="width:16px;height:16px;">
+                        API Access
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;">
+                        <input type="checkbox" name="has_debt_access" id="edit-debt" style="width:16px;height:16px;">
+                        Debt Access
+                    </label>
+                </div>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;">
+                <button type="button" onclick="document.getElementById('edit-modal').style.display='none'"
+                        style="padding:10px 20px;border-radius:8px;border:1px solid var(--border,#444);
+                               background:transparent;color:inherit;cursor:pointer;font-size:0.9rem;">
+                    Cancel
+                </button>
+                <button type="submit"
+                        style="padding:10px 24px;border-radius:8px;border:none;
+                               background:#ff9800;color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function togglePrices(id) {
+    var el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function openEditRole(id, name, slug, desc, maxLinks, hasApi, hasDebt) {
+    document.getElementById('edit-role-id').value   = id;
+    document.getElementById('edit-name').value       = name;
+    document.getElementById('edit-slug').value       = slug;
+    document.getElementById('edit-description').value = desc;
+    document.getElementById('edit-max-links').value  = maxLinks;
+    document.getElementById('edit-api').checked      = hasApi === 'true';
+    document.getElementById('edit-debt').checked     = hasDebt === 'true';
+    document.getElementById('edit-modal').style.display = 'flex';
+}
+// Auto-generate slug from name in create modal
+document.querySelector('[name="name"]') && document.querySelector('[name="name"]').addEventListener('input', function(){
+    var slug = document.querySelector('#create-modal [name="slug"]');
+    if (slug) slug.value = this.value.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+});
+</script>
+{% endblock %}

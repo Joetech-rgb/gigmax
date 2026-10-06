@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% block title %}Order Queue – Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+        <h1 class="page-title">Order Queue</h1>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="margin-bottom:16px;">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Date filter -->
+        <div class="card" style="margin-bottom:24px;">
+            <form method="get" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+                <div class="form-group" style="margin:0; flex:1; min-width:160px;">
+                    <label>Date</label>
+                    <input type="date" name="date" value="{{ date }}" class="form-control">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa fa-filter"></i> Filter
+                </button>
+                <a href="/admin-panel/order-queue/" class="btn btn-outline">Today</a>
+            </form>
+        </div>
+
+        {% if queue_list %}
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:16px;">
+            {{ queue_list|length }} agent{{ queue_list|length|pluralize }} in queue for {{ date }}.
+            Queue 1 placed orders first.
+        </p>
+
+        {% for q in queue_list %}
+        <div class="card" style="margin-bottom:20px; border-color:{% if q.queue_number == 1 %}rgba(0,200,83,0.4){% else %}var(--border){% endif %};">
+
+            <!-- Queue Header -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+                <div style="display:flex; align-items:center; gap:16px;">
+                    <div style="width:44px; height:44px; border-radius:50%;
+                                background:{% if q.queue_number == 1 %}rgba(0,200,83,0.15){% else %}var(--surface2){% endif %};
+                                display:flex; align-items:center; justify-content:center;
+                                font-family:'Syne',sans-serif; font-weight:800; font-size:1.1rem;
+                                color:{% if q.queue_number == 1 %}var(--primary){% else %}var(--muted){% endif %};">
+                        {{ q.queue_number }}
+                    </div>
+                    <div>
+                        <p style="font-weight:700; font-size:1rem; margin-bottom:2px;">{{ q.name }}</p>
+                        <p style="font-size:0.8rem; color:var(--muted);">
+                            Queue {{ q.queue_number }} &mdash;
+                            {{ q.total_orders }} order{{ q.total_orders|pluralize }} &mdash;
+                            First order: {{ q.first_order|date:"H:i" }}
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-outline btn-sm"
+                        onclick="toggleQueue('queue-{{ q.queue_number }}')">
+                        <i class="fa fa-eye"></i> View Orders
+                    </button>
+                    <button class="btn btn-primary btn-sm"
+                        onclick="copyQueue({{ q.queue_number }})">
+                        <i class="fa fa-copy"></i> Copy Queue {{ q.queue_number }}
+                    </button>
+                    <button class="btn btn-outline btn-sm"
+                        onclick="downloadQueue({{ q.queue_number }})">
+                        <i class="fa fa-file-excel"></i> Download
+                    </button>
+                    <button class="btn btn-sm"
+                        style="background:rgba(0,200,83,0.1); border:1px solid var(--primary); color:var(--primary);"
+                        onclick="markDelivered({{ q.queue_number }})">
+                        <i class="fa fa-check-double"></i> Mark Delivered
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hidden order list -->
+            <div id="queue-{{ q.queue_number }}" style="display:none;">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Order ID</th>
+                                <th>Recipient</th>
+                                <th>GB</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-{{ q.queue_number }}">
+                            {% for o in q.orders %}
+                            <tr data-orderid="{{ o.order_id }}"
+                                data-recipient="{{ o.recipient }}"
+                                data-gb="{{ o.gb_package.gb_size|floatformat:0 }}">
+                                <td style="color:var(--muted);">{{ forloop.counter }}</td>
+                                <td><code>{{ o.order_id }}</code></td>
+                                <td><strong>{{ o.recipient }}</strong></td>
+                                <td>{{ o.gb_package.gb_size|floatformat:0 }}GB</td>
+                                <td>
+                                    <span class="badge
+                                        {% if o.status == 'delivered' %}badge-success
+                                        {% elif o.status == 'processing' %}badge-warning
+                                        {% elif o.status == 'failed' %}badge-danger
+                                        {% else %}badge-muted{% endif %}">
+                                        {{ o.get_status_display }}
+                                    </span>
+                                </td>
+                                <td style="color:var(--muted); font-size:0.8rem;">{{ o.created_at|date:"H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Copy result box -->
+                <div id="copybox-{{ q.queue_number }}" style="display:none; margin-top:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <p style="font-size:0.85rem; font-weight:600; color:var(--muted);">Queue {{ q.queue_number }} — Copied</p>
+                        <button onclick="navigator.clipboard.writeText(document.getElementById('copytext-{{ q.queue_number }}').value).then(()=>alert('Copied again!'))"
+                                class="btn btn-outline btn-sm">Copy Again</button>
+                    </div>
+                    <textarea id="copytext-{{ q.queue_number }}" class="form-control" rows="6" readonly
+                              style="font-family:monospace; font-size:0.85rem;"></textarea>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% else %}
+        <div class="card" style="text-align:center; padding:48px; color:var(--muted);">
+            <i class="fa fa-list-ol" style="font-size:2.5rem; margin-bottom:16px; display:block;"></i>
+            No pending or processing orders in the queue for {{ date }}.
+        </div>
+        {% endif %}
+
+    </main>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+function toggleQueue(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function getQueueData(queueNum) {
+    const rows = document.querySelectorAll(`#tbody-${queueNum} tr`);
+    return [...rows].map((r, i) => ({
+        num:       i + 1,
+        orderid:   r.dataset.orderid,
+        recipient: r.dataset.recipient,
+        gb:        r.dataset.gb,
+    }));
+}
+
+async function copyQueue(queueNum) {
+    const data    = getQueueData(queueNum);
+    const ids     = data.map(d => d.orderid);
+    const lines   = data.map(d => `${d.num}. ${d.recipient} ${d.gb}GB`).join('\n');
+    const text    = `Queue ${queueNum} — MTN\n${lines}`;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(text);
+
+    // Show copy box
+    document.getElementById(`queue-${queueNum}`).style.display = 'block';
+    document.getElementById(`copybox-${queueNum}`).style.display = 'block';
+    document.getElementById(`copytext-${queueNum}`).value = text;
+
+    // Update orders to processing
+    const form = new FormData();
+    ids.forEach(id => form.append('order_ids', id));
+    form.append('status', 'processing');
+    form.append('csrfmiddlewaretoken', CSRF);
+    await fetch('/admin-panel/orders/bulk-status/', { method: 'POST', body: form });
+
+    alert(`Queue ${queueNum} copied — ${data.length} orders set to Processing.`);
+}
+
+function downloadQueue(queueNum) {
+    const data = getQueueData(queueNum);
+    let csv = 'No,Number,GB\n';
+    data.forEach(d => { csv += `${d.num},${d.recipient},${d.gb}GB\n`; });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `Queue_${queueNum}_MTN_{{ date }}.csv`;
+    a.click();
+}
+
+async function markDelivered(queueNum) {
+    const data = getQueueData(queueNum);
+    const ids  = data.map(d => d.orderid);
+
+    if (!confirm(`Mark all ${ids.length} orders in Queue ${queueNum} as Delivered?`)) return;
+
+    const form = new FormData();
+    ids.forEach(id => form.append('order_ids', id));
+    form.append('status', 'delivered');
+    form.append('csrfmiddlewaretoken', CSRF);
+
+    await fetch('/admin-panel/orders/bulk-status/', { method: 'POST', body: form });
+    alert(`Queue ${queueNum} — ${ids.length} orders marked as Delivered.`);
+    location.reload();
+}
+</script>
+{% endblock %}

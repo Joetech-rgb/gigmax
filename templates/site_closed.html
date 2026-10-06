@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}We're Closed — SK Plug{% endblock %}
+{% block body %}
+<div style="min-height:80vh; display:flex; align-items:center; justify-content:center; padding:40px 20px;">
+    <div style="text-align:center; max-width:480px;">
+
+        <div style="font-size:4rem; margin-bottom:16px;">🔒</div>
+
+        <h1 style="font-family:'Syne',sans-serif; font-weight:800; font-size:2rem;
+                   margin-bottom:12px; color:var(--text);">
+            We're Closed for Now
+        </h1>
+
+        <p style="color:var(--muted); font-size:1rem; line-height:1.7; margin-bottom:32px;">
+            SK Plug is temporarily unavailable. We'll be back shortly.
+            Please check back later or contact us on WhatsApp.
+        </p>
+
+        {% if ADMIN_WHATSAPP_NUMBER %}
+        <a href="https://wa.me/{{ ADMIN_WHATSAPP_NUMBER }}"
+           target="_blank"
+           class="btn btn-primary"
+           style="border-radius:30px; padding:14px 32px; font-size:1rem;">
+            <i class="fa fa-whatsapp"></i> Contact Us on WhatsApp
+        </a>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

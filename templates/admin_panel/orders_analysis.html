@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Orders Analysis — Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include "partials/sidebar.html" %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+
+        <h1 class="page-title"><i class="fa fa-chart-bar"></i> Orders Analysis</h1>
+
+        <form method="get" class="card" style="margin-bottom:24px;">
+            <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+                <div class="form-group" style="margin:0; flex:1; min-width:160px;">
+                    <label>Date</label>
+                    <input type="date" name="date" value="{{ date }}" class="form-control">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa fa-filter"></i> Filter
+                </button>
+                <a href="/admin-panel/orders-analysis/" class="btn btn-outline">Today</a>
+            </div>
+        </form>
+
+        <div class="card" style="margin-bottom:24px;">
+            <p style="color:var(--muted); font-size:0.9rem;">
+                <i class="fa fa-circle-info"></i>
+                Showing <strong>{{ total_orders }}</strong> total orders for <strong>{{ date }}</strong>.
+                Sorted by highest orders of the day.
+            </p>
+        </div>
+
+        {% if agent_data %}
+        <div class="card table-wrap">
+            <table style="min-width:1100px;">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Total Amount (GHS)</th>
+                        <th>Total GB</th>
+                        <th>Total Orders</th>
+                        <th>MTN API</th>
+                        <th>MTN Manual</th>
+                        <th>Other Network</th>
+                        <th>AFA</th>
+                        <th>Delivered</th>
+                        <th>Pending</th>
+                        <th>Processing</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in agent_data %}
+                    <tr style="{% if a.role == 'Customer' %}background:rgba(156,39,176,0.05);{% endif %}">
+                        <td style="color:var(--muted);">{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ a.name }}</strong>
+                            {% if a.role == 'Customer' %}
+                            <span style="font-size:0.7rem; color:#9c27b0; margin-left:6px;">
+                                <i class="fa fa-users"></i> no-login users
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge
+                                {% if a.role == 'Extreme Agent' %}badge-danger
+                                {% elif a.role == 'Super-Mega Agent' %}badge-warning
+                                {% elif a.role == 'Mega Agent' %}badge-info
+                                {% elif a.role == 'Customer' %}badge-muted
+                                {% else %}badge-success{% endif %}">
+                                {{ a.role }}
+                            </span>
+                        </td>
+                        <td style="font-weight:700; color:var(--primary);">GHS {{ a.total_amount }}</td>
+                        <td>{{ a.total_gb }} GB</td>
+                        <td><strong>{{ a.total_orders }}</strong></td>
+                        <td style="font-size:0.85rem;">{{ a.mtn_api }}</td>
+                        <td style="font-size:0.85rem;">{{ a.mtn_manual }}</td>
+                        <td style="font-size:0.85rem;">{{ a.other_network }}</td>
+                        <td style="font-size:0.85rem; color:var(--primary); font-weight:600;">{{ a.afa }}</td>
+                        <td style="color:#00C853; font-weight:600;">{{ a.delivered }}</td>
+                        <td style="color:{% if a.pending > 0 %}#f44336{% else %}var(--muted){% endif %}; font-weight:600;">{{ a.pending }}</td>
+                        <td style="color:#FF9800; font-weight:600;">{{ a.processing }}</td>
+                        <td>
+                            <button class="btn btn-outline btn-sm" onclick="toggleRow('row-{{ forloop.counter }}', this)" title="View breakdown">
+                                <i class="fa fa-chevron-down"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <tr id="row-{{ forloop.counter }}" style="display:none;">
+                        <td colspan="14" style="padding:0;">
+                            <div style="background:var(--surface2); padding:16px 24px; border-top:1px solid var(--border);">
+                                <div style="display:flex; gap:24px; flex-wrap:wrap;">
+                                    <div style="flex:1; min-width:200px;">
+                                        <p style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin:0 0 10px; font-weight:600;">Order Breakdown</p>
+                                        <table style="width:100%; font-size:0.85rem;">
+                                            <tr>
+                                                <td style="color:var(--muted); padding:3px 0;">MTN API</td>
+                                                <td style="font-weight:600;">{{ a.mtn_api }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color:var(--muted); padding:3px 0;">MTN Manual</td>
+                                                <td style="font-weight:600;">{{ a.mtn_manual }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color:var(--muted); padding:3px 0;">Other Network</td>
+                                                <td style="font-weight:600;">{{ a.other_network }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color:var(--muted); padding:3px 0;">AFA</td>
+                                                <td style="font-weight:600; color:var(--primary);">{{ a.afa }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div style="flex:1; min-width:200px;">
+                                        <p style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin:0 0 10px; font-weight:600;">Status</p>
+                                        <table style="width:100%; font-size:0.85rem;">
+                                            <tr>
+                                                <td style="color:var(--muted); padding:3px 0;">Delivered</td>
+                                                <td style="font-weight:600; color:#00C853;">{{ a.delivered }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color:var(--muted); padding:3px 0;">Pending</td>
+                                                <td style="font-weight:600; color:{% if a.pending > 0 %}#f44336{% else %}var(--muted){% endif %};">{{ a.pending }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color:var(--muted); padding:3px 0;">Processing</td>
+                                                <td style="font-weight:600; color:#FF9800;">{{ a.processing }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div style="flex:1; min-width:200px;">
+                                        <p style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; margin:0 0 10px; font-weight:600;">Totals</p>
+                                        <table style="width:100%; font-size:0.85rem;">
+                                            <tr>
+                                                <td style="color:var(--muted); padding:3px 0;">Total GB</td>
+                                                <td style="font-weight:600;">{{ a.total_gb }} GB</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color:var(--muted); padding:3px 0;">Amount (GHS)</td>
+                                                <td style="font-weight:700; color:var(--primary);">{{ a.total_amount }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    {% if a.role == 'Customer' %}
+                                    <div style="display:flex; align-items:center;">
+                                        <a href="/admin-panel/customer-orders/?date={{ date }}" class="btn btn-outline btn-sm" style="white-space:nowrap;">
+                                            <i class="fa fa-arrow-right"></i> View Customer Orders
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card" style="text-align:center; padding:48px; color:var(--muted);">
+            <i class="fa fa-chart-bar" style="font-size:2.5rem; margin-bottom:16px; display:block;"></i>
+            No orders found for {{ date }}.
+        </div>
+        {% endif %}
+
+    </main>
+</div>
+
+<script>
+function toggleRow(id, btn) {
+    const row = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    const isHidden = row.style.display === 'none' || row.style.display === '';
+    row.style.display = isHidden ? 'table-row' : 'none';
+    icon.className = isHidden ? 'fa fa-chevron-up' : 'fa fa-chevron-down';
+}
+</script>
+{% endblock %}

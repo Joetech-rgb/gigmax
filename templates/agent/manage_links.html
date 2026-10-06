@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% load i18n dict_extras %}
+{% block title %}Generated Links - SK Plug{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+            <h1 class="page-title" style="margin:0;">Generated Links</h1>
+            {% if user.role == "small_agent" %}
+            <small style="color:#888; font-size:0.8rem;">Limit: 2 links</small>
+            {% else %}
+            <small style="color:#888; font-size:0.8rem;">Limit: 3 links</small>
+            {% endif %}
+            {% if links.count < max_links %}
+            <a href="/agent/links/create/" class="btn btn-primary">
+                <i class="fa fa-plus"></i> Create Link
+            </a>
+            {% endif %}
+        </div>
+
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+
+        {% if creating %}
+        <div class="card" style="max-width:700px;">
+            <p class="section-title">Create New Link</p>
+            <form method="post" action="/agent/links/create/" id="linkForm">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Link Label</label>
+                    <input type="text" name="label" class="form-control" placeholder="e.g. My Shop Link">
+                </div>
+                <p class="section-title" style="margin-top:20px;">Set Retail Prices per Package</p>
+                <p style="color:var(--muted); font-size:0.82rem; margin-bottom:16px;">
+                    <i class="fa fa-circle-info"></i> Leave blank to hide a package from your link. Set a price higher than your cost to make profit.
+                </p>
+
+                {% regroup packages by get_network_display as network_groups %}
+                {% for group in network_groups %}
+                <div style="margin-bottom:24px; border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+                    <div style="background:var(--primary); padding:10px 16px;">
+                        <span style="font-weight:700; font-size:0.85rem; color:#fff; text-transform:uppercase; letter-spacing:0.06em;">
+                            <i class="fa fa-signal" style="margin-right:6px;"></i>{{ group.grouper }}
+                        </span>
+                    </div>
+                    <div style="padding:0 16px;">
+                        <div style="display:grid; grid-template-columns:1fr auto auto; gap:8px; padding:8px 0; border-bottom:1px solid var(--border);">
+                            <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Package</span>
+                            <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; text-align:right;">Your Cost</span>
+                            <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; text-align:right; min-width:130px;">Your Selling Price</span>
+                        </div>
+                        {% for pkg in group.list %}
+                        <div style="display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid var(--border);">
+                            <span style="font-size:0.9rem; font-weight:600;">{{ pkg.gb_size }}GB</span>
+                            <span style="font-size:0.85rem; color:var(--muted); text-align:right;">GHS {{ pkg.agent_price }}</span>
+                            <input type="number" name="price_{{ pkg.id }}"
+                                   class="form-control price-input"
+                                   data-min="{{ pkg.agent_price }}"
+                                   data-label="{{ pkg.gb_size }}GB ({{ group.grouper }})"
+                                   placeholder="e.g. {{ pkg.agent_price }}"
+                                   step="0.01" min="{{ pkg.agent_price }}"
+                                   style="width:130px;">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div id="priceError" style="display:none; background:#fdecea; color:#922b21; border:1px solid #f5b7b1; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:0.87rem;"></div>
+                <button type="submit" class="btn btn-primary btn-full" style="margin-top:8px;">Create Link</button>
+            </form>
+        </div>
+
+        {% elif editing %}
+        <div class="card" style="max-width:700px;">
+            <p class="section-title">Edit Link: {{ link.label }}</p>
+            <form method="post" action="/agent/links/{{ link.pk }}/edit/" id="linkForm">
+                {% csrf_token %}
+                <p class="section-title" style="margin-top:20px;">Set Retail Prices per Package</p>
+                <p style="color:var(--muted); font-size:0.82rem; margin-bottom:16px;">
+                    <i class="fa fa-circle-info"></i> Leave blank to hide a package from your link. Set a price higher than your cost to make profit.
+                </p>
+
+                {% regroup packages by get_network_display as network_groups %}
+                {% for group in network_groups %}
+                <div style="margin-bottom:24px; border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+                    <div style="background:var(--primary); padding:10px 16px;">
+                        <span style="font-weight:700; font-size:0.85rem; color:#fff; text-transform:uppercase; letter-spacing:0.06em;">
+                            <i class="fa fa-signal" style="margin-right:6px;"></i>{{ group.grouper }}
+                        </span>
+                    </div>
+                    <div style="padding:0 16px;">
+                        <div style="display:grid; grid-template-columns:1fr auto auto; gap:8px; padding:8px 0; border-bottom:1px solid var(--border);">
+                            <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Package</span>
+                            <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; text-align:right;">Your Cost</span>
+                            <span style="font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; text-align:right; min-width:130px;">Your Selling Price</span>
+                        </div>
+                        {% for pkg in group.list %}
+                        <div style="display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid var(--border);">
+                            <span style="font-size:0.9rem; font-weight:600;">{{ pkg.gb_size }}GB</span>
+                            <span style="font-size:0.85rem; color:var(--muted); text-align:right;">GHS {{ pkg.agent_price }}</span>
+                            <input type="number" name="price_{{ pkg.id }}"
+                                   class="form-control price-input"
+                                   data-min="{{ pkg.agent_price }}"
+                                   data-label="{{ pkg.gb_size }}GB ({{ group.grouper }})"
+                                   placeholder="e.g. {{ pkg.agent_price }}"
+                                   step="0.01" min="{{ pkg.agent_price }}"
+                                   style="width:130px;"
+                                   value="{{ prices|get_item:pkg.id }}">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div id="priceError" style="display:none; background:#fdecea; color:#922b21; border:1px solid #f5b7b1; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:0.87rem;"></div>
+                <button type="submit" class="btn btn-primary btn-full" style="margin-top:8px;">Save Changes</button>
+            </form>
+        </div>
+
+        {% else %}
+        <div class="card table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Label</th><th>Link</th><th>Orders</th><th>Revenue</th><th>Profit</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for link in links %}
+                    <tr>
+                        <td>{{ link.label }}</td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <input
+                                    id="link-url-{{ link.pk }}"
+                                    type="text"
+                                    readonly
+                                    value="{{ request.scheme }}://{{ request.get_host }}/buy/link/{{ link.token }}/"
+                                    style="flex:1;min-width:0;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:0.78rem;background:var(--surface);color:var(--text);font-family:monospace;"
+                                />
+                                <button
+                                    type="button"
+                                    onclick="copyLink({{ link.pk }})"
+                                    class="btn btn-outline btn-sm"
+                                    title="Copy link"
+                                    style="white-space:nowrap;flex-shrink:0;"
+                                >
+                                    <i class="fa fa-copy" id="copy-icon-{{ link.pk }}"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td>{{ link.total_orders }}</td>
+                        <td>GHS {{ link.total_revenue }}</td>
+                        <td style="color:var(--primary); font-weight:700;">GHS {{ link.total_profit }}</td>
+                        <td>
+                            <span class="badge {% if link.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                {% if link.is_active %}Active{% else %}Off{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <a href="/agent/links/{{ link.pk }}/edit/" class="btn btn-outline btn-sm">
+                                    <i class="fa fa-pen"></i> Edit
+                                </a>
+                                <button onclick="confirmToggle('{{ link.pk }}', '{{ link.label }}', {% if link.is_active %}true{% else %}false{% endif %})"
+                                        class="btn btn-outline btn-sm">
+                                    {% if link.is_active %}Pause{% else %}Activate{% endif %}
+                                </button>
+                                <button onclick="confirmDelete('{{ link.pk }}', '{{ link.label }}')"
+                                        class="btn btn-danger btn-sm">
+                                    <i class="fa fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px;">No links created yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </main>
+</div>
+
+<!-- Toggle Confirm Modal -->
+<div class="modal-overlay" id="toggleModal">
+    <div class="modal-box" style="max-width:420px;">
+        <button class="modal-close" onclick="closeModal('toggleModal')"><i class="fa fa-xmark"></i></button>
+        <p class="modal-title" id="toggleTitle">Confirm Action</p>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:20px;" id="toggleMsg"></p>
+        <div style="display:flex; gap:12px;">
+            <a id="toggleConfirmBtn" href="#" class="btn btn-primary" style="flex:1;">Confirm</a>
+            <button onclick="closeModal('toggleModal')" class="btn btn-outline">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-box" style="max-width:420px;">
+        <button class="modal-close" onclick="closeModal('deleteModal')"><i class="fa fa-xmark"></i></button>
+        <p class="modal-title" style="color:var(--danger);">Delete Link</p>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:20px;" id="deleteMsg"></p>
+        <form id="deleteForm" method="post" action="#">
+            {% csrf_token %}
+            <div style="display:flex; gap:12px;">
+                <button type="submit" class="btn btn-danger" style="flex:1;"><i class="fa fa-trash"></i> Delete</button>
+                <button type="button" onclick="closeModal('deleteModal')" class="btn btn-outline">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+function copyLink(pk) {
+    const input = document.getElementById("link-url-" + pk);
+    const icon  = document.getElementById("copy-icon-" + pk);
+    input.select();
+    input.setSelectionRange(0, 99999);
+    const done = function() {
+        icon.className = "fa fa-check";
+        setTimeout(function() { icon.className = "fa fa-copy"; }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).then(done).catch(function() {
+            document.execCommand("copy"); done();
+        });
+    } else {
+        document.execCommand("copy"); done();
+    }
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+}
+function confirmToggle(pk, label, isActive) {
+    const action = isActive ? 'Pause' : 'Activate';
+    document.getElementById('toggleTitle').textContent = action + ' Link';
+    document.getElementById('toggleMsg').textContent = `Are you sure you want to ${action.toLowerCase()} "${label}"?`;
+    document.getElementById('toggleConfirmBtn').href = `/agent/links/${pk}/toggle/`;
+    document.getElementById('toggleModal').classList.add('open');
+}
+function confirmDelete(pk, label) {
+    document.getElementById('deleteMsg').textContent = `Are you sure you want to delete "${label}"? This cannot be undone.`;
+    document.getElementById('deleteForm').action = `/agent/links/${pk}/delete/`;
+    document.getElementById('deleteModal').classList.add('open');
+}
+
+// ── Front-end price validation ─────────────────────────────────────────────
+const form = document.getElementById('linkForm');
+if (form) {
+    form.addEventListener('submit', function(e) {
+        const errorBox = document.getElementById('priceError');
+        const errors   = [];
+
+        document.querySelectorAll('.price-input').forEach(input => {
+            const val = input.value.trim();
+            if (!val) return; // blank = hidden, allowed
+            const entered  = parseFloat(val);
+            const minPrice = parseFloat(input.dataset.min);
+            const label    = input.dataset.label;
+            if (isNaN(entered) || entered < minPrice) {
+                input.style.borderColor = '#e74c3c';
+                errors.push(`${label}: GHS ${entered} is below your cost of GHS ${minPrice}.`);
+            } else {
+                input.style.borderColor = '';
+            }
+        });
+
+        if (errors.length > 0) {
+            e.preventDefault();
+            errorBox.innerHTML = '<strong><i class="fa fa-circle-exclamation"></i> Please fix the following:</strong><ul style="margin:8px 0 0 16px;">'
+                + errors.map(e => `<li>${e}</li>`).join('')
+                + '</ul>';
+            errorBox.style.display = 'block';
+            errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            errorBox.style.display = 'none';
+        }
+    });
+
+    // Live feedback as agent types
+    document.querySelectorAll('.price-input').forEach(input => {
+        input.addEventListener('input', function() {
+            const val      = parseFloat(this.value);
+            const minPrice = parseFloat(this.dataset.min);
+            if (this.value && val < minPrice) {
+                this.style.borderColor = '#e74c3c';
+                this.title = `Minimum price is GHS ${minPrice}`;
+            } else {
+                this.style.borderColor = '';
+                this.title = '';
+            }
+        });
+    });
+}
+</script>
+{% endblock %}

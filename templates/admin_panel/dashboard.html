@@ -1,0 +1,618 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard – SK Plug{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:28px;">
+            <h1 class="page-title" style="margin:0;">Admin Dashboard</h1>
+
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+
+                {# ── MTN Toggle Switch ── #}
+                <form method="post" action="/admin-panel/toggle-mtn/" style="margin:0; display:flex; align-items:center; gap:8px;">
+                    {% csrf_token %}
+                    <span style="font-size:0.82rem; font-weight:600; color:{% if mtn_enabled %}#FF6D00{% else %}#e53935{% endif %};">
+                        {% if mtn_enabled %}MTN Active{% else %}MTN Paused{% endif %}
+                    </span>
+                    <label class="ui-switch">
+                        <input type="checkbox" onchange="this.form.submit()" {% if mtn_enabled %}checked{% endif %}>
+                        <span class="ui-slider" style="--on-color:#FF6D00;"></span>
+                    </label>
+                </form>
+
+                {# ── Site Open/Close Toggle Switch ── #}
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span id="siteStatusLabel" style="font-size:0.82rem; font-weight:600; color:{% if site_open %}#00c853{% else %}#e53935{% endif %};">
+                        {% if site_open %}Site Open{% else %}Site Closed{% endif %}
+                    </span>
+                    <label class="ui-switch">
+                        <input type="checkbox" id="siteToggleSwitch"
+                               {% if site_open %}checked{% endif %}
+                               onchange="handleSiteSwitch(this)">
+                        <span class="ui-slider" style="--on-color:#00c853;"></span>
+                    </label>
+                </div>
+
+            </div>
+        </div>
+
+        {# ── Password Confirmation Modal ── #}
+        <div id="siteToggleModal"
+             style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55);
+                    z-index:9999; align-items:center; justify-content:center;">
+            <div style="background:var(--surface, #1e1e2e); border:1px solid var(--border, #333);
+                        border-radius:16px; padding:32px; width:100%; max-width:420px;
+                        box-shadow:0 20px 60px rgba(0,0,0,0.4); margin:16px;">
+                <h3 id="modalTitle" style="margin:0 0 8px; font-size:1.1rem;">Confirm Action</h3>
+                <p id="modalDesc" style="color:var(--muted); font-size:0.9rem; margin-bottom:24px;"></p>
+                <form id="siteToggleForm" method="post" action="/admin-panel/toggle-site/">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" id="modalAction" value="">
+                    <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:8px;">
+                        Enter your password to confirm
+                    </label>
+                    <input type="password" name="confirm_password" id="confirmPasswordInput"
+                           placeholder="Your admin password"
+                           style="width:100%; padding:10px 14px; border-radius:8px;
+                                  border:1px solid var(--border, #444);
+                                  background:var(--surface2, #2a2a3e); color:inherit;
+                                  font-size:0.95rem; box-sizing:border-box; margin-bottom:8px;"
+                           autocomplete="current-password">
+                    <p id="modalError" style="color:#f44336; font-size:0.82rem; min-height:20px; margin:0 0 16px;"></p>
+                    <div style="display:flex; gap:12px; justify-content:flex-end;">
+                        <button type="button" onclick="closeSiteToggleModal()"
+                                style="padding:9px 20px; border-radius:8px; border:1px solid var(--border,#444);
+                                       background:transparent; color:inherit; cursor:pointer; font-size:0.9rem;">
+                            Cancel
+                        </button>
+                        <button type="submit" id="modalConfirmBtn"
+                                style="padding:9px 20px; border-radius:8px; border:none;
+                                       background:#e53935; color:#fff; font-weight:700;
+                                       cursor:pointer; font-size:0.9rem;">
+                            Confirm
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {# ── Top Stats ── #}
+        <div class="grid-4" style="margin-bottom:28px;">
+            <div class="stat-card">
+                <div class="stat-label">All-Time Revenue</div>
+                <div class="stat-value">GHS {{ total_revenue }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Today's Revenue</div>
+                <div class="stat-value">GHS {{ daily_revenue }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-value">{{ total_users }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pending Requests</div>
+                <div class="stat-value">{{ pending_requests }}</div>
+            </div>
+            <div class="stat-card" style="border-color:rgba(255,109,0,0.4); background:rgba(255,109,0,0.05);">
+                <div class="stat-label">Waiting Orders</div>
+                <div class="stat-value" style="color:#FF6D00;">{{ waiting_orders }}</div>
+            </div>
+            <div class="stat-card" style="border-color:rgba(255,152,0,0.4); background:rgba(255,152,0,0.05); cursor:pointer;" onclick="window.location.href='/admin-panel/kuntanii-unverified/'">
+                <div class="stat-label">Kuntanii Unverified</div>
+                <div class="stat-value" style="color:#FF9800;">{{ kuntanii_unverified_count }}</div>
+            </div>
+            <div class="stat-card" style="border-color:rgba(233,30,99,0.4); background:rgba(233,30,99,0.05);">
+                <div class="stat-label">Refunded Orders</div>
+                <div class="stat-value" style="color:#E91E63;">{{ refunded_orders }}</div>
+            </div>
+        </div>
+
+        <div style="margin-bottom:28px;">
+            <button type="button" id="bulkWaitingToRefundedBtn" class="btn btn-danger">
+                <i class="fa fa-triangle-exclamation"></i> Move ALL Waiting Orders to Refunded ({{ waiting_orders }})
+            </button>
+            <span style="font-size:0.85rem; color:var(--muted); margin-left:12px;">
+                Amount: GHS {{ waiting_orders_amount }}
+            </span>
+            <span id="bulkWaitingMsg" style="font-size:0.85rem; color:var(--muted); margin-left:12px;"></span>
+        </div>
+
+        <script>
+        document.getElementById('bulkWaitingToRefundedBtn').addEventListener('click', async function() {
+            const count = {{ waiting_orders }};
+            if (count === 0) {
+                alert('There are no orders currently on the Waiting list.');
+                return;
+            }
+            const confirmed = confirm(
+                'Have you actually paid ALL agents for these ' + count + ' Waiting orders? ' +
+                'This marks them Refunded AND logs them as paid, across every agent. ' +
+                'Only confirm if payment has already been sent to everyone affected.'
+            );
+            if (!confirmed) return;
+
+            const btn = this;
+            btn.disabled = true;
+            const msg = document.getElementById('bulkWaitingMsg');
+            msg.textContent = 'Processing...';
+
+            try {
+                const form = new FormData();
+                form.append('confirm', '1');
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+                const res = await fetch('/admin-panel/orders/bulk-waiting-to-refunded/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken },
+                    body: form,
+                });
+                const data = await res.json();
+                msg.textContent = 'Updated ' + data.updated + ' orders to Refunded.';
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (err) {
+                msg.textContent = 'Error updating orders. Please try again.';
+                btn.disabled = false;
+            }
+        });
+        </script>
+
+        {# ── All-Network Profit Summary ── #}
+        <div class="card" style="margin-bottom:28px; border-color:rgba(255,193,7,0.35);">
+            <p class="section-title" style="margin-bottom:16px;">📊 Today's Profit — All Networks</p>
+            <div class="grid-4">
+                <div class="stat-card" style="border-color:rgba(0,200,83,0.3);">
+                    <div class="stat-label">MTN Profit</div>
+                    <div class="stat-value" style="font-size:1.4rem; color:{% if mtn_daily_profit >= 0 %}var(--primary){% else %}#f44336{% endif %};">
+                        GHS {{ mtn_daily_profit|floatformat:2 }}
+                    </div>
+                    <div class="stat-sub">MTN orders today</div>
+                </div>
+                {% for net in other_networks_today %}
+                <div class="stat-card" style="border-color:rgba(33,150,243,0.3);">
+                    <div class="stat-label">{{ net.network }} Profit</div>
+                    <div class="stat-value" style="font-size:1.4rem; color:{% if net.profit >= 0 %}#2196f3{% else %}#f44336{% endif %};">
+                        GHS {{ net.profit|floatformat:2 }}
+                    </div>
+                    <div class="stat-sub">{{ net.count }} order{{ net.count|pluralize }} · Rev: GHS {{ net.revenue|floatformat:2 }}</div>
+                </div>
+                {% endfor %}
+                <div class="stat-card" style="border-color:rgba(156,39,176,0.3);">
+                    <div class="stat-label">AFA Profit</div>
+                    <div class="stat-value" style="font-size:1.4rem; color:#9c27b0;">
+                        GHS {{ afa_today_profit|floatformat:2 }}
+                    </div>
+                    <div class="stat-sub">{{ afa_today_count }} application{{ afa_today_count|pluralize }}</div>
+                </div>
+                <div class="stat-card" style="border-color:rgba(99,102,241,0.4); background:rgba(99,102,241,0.05); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px;">
+                    <div style="position:relative; width:110px; height:110px;">
+                        <svg width="110" height="110" viewBox="0 0 110 110" style="transform:rotate(-90deg);">
+                            <circle cx="55" cy="55" r="44" fill="none" stroke="#1e1b4b" stroke-width="11"/>
+                            <circle id="lp-arc" cx="55" cy="55" r="44" fill="none"
+                                    stroke="#6366f1" stroke-width="11"
+                                    stroke-dasharray="276.5" stroke-dashoffset="276.5"
+                                    stroke-linecap="round"
+                                    style="transition:stroke-dashoffset 1s ease;"/>
+                        </svg>
+                        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+                            <span style="font-size:8px;font-weight:700;letter-spacing:1px;color:#94a3b8;text-transform:uppercase;">Link</span>
+                            <span id="lp-val" style="font-size:12px;font-weight:800;color:#fff;line-height:1.2;">-</span>
+                            <span id="lp-count" style="font-size:8px;color:#6366f1;">-</span>
+                        </div>
+                    </div>
+                    <div style="margin-top:6px;font-size:9px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Agent Link Profit</div>
+                    <div id="lp-pulse" style="font-size:8px;color:#4ade80;margin-top:2px;">● LIVE</div>
+                </div>
+                <div class="stat-card" style="border-color:rgba(255,193,7,0.4); background:rgba(255,193,7,0.05);">
+                    <div class="stat-label">Total Profit Today</div>
+                    <div class="stat-value" style="font-size:1.5rem; color:#ffc107; font-weight:800;">
+                        GHS {{ total_profit_today|floatformat:2 }}
+                    </div>
+                    <div class="stat-sub">All networks combined</div>
+                </div>
+            </div>
+        </div>
+
+        {# ── MTN Daily Base Price Revenue ── #}
+        <div class="card" style="margin-bottom:28px; border-color:rgba(0,200,83,0.3);">
+            <p class="section-title" style="margin-bottom:4px;">MTN Daily Base Price Revenue</p>
+            <p style="font-size:0.8rem; color:var(--muted); margin-bottom:20px;">{{ today }} &mdash; API + Manual &mdash; base price only</p>
+            <div class="grid-4">
+                <div class="stat-card" style="border-color:rgba(0,200,83,0.2);">
+                    <div class="stat-label">API Base Revenue</div>
+                    <div class="stat-value" style="font-size:1.4rem;">GHS {{ mtn_api_revenue|floatformat:2 }}</div>
+                    <div class="stat-sub">From API orders</div>
+                </div>
+                <div class="stat-card" style="border-color:rgba(0,200,83,0.2);">
+                    <div class="stat-label">Manual Base Revenue</div>
+                    <div class="stat-value" style="font-size:1.4rem;">GHS {{ mtn_manual_revenue|floatformat:2 }}</div>
+                    <div class="stat-sub">From manual orders</div>
+                </div>
+                <div class="stat-card" style="border-color:rgba(0,200,83,0.4);">
+                    <div class="stat-label">Total MTN Base Today</div>
+                    <div class="stat-value" style="font-size:1.4rem;">GHS {{ mtn_total_today|floatformat:2 }}</div>
+                    <div class="stat-sub">API + Manual combined</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Daily Profit</div>
+                    <div class="stat-value" style="font-size:1.4rem; color:{% if mtn_daily_profit >= 0 %}var(--primary){% else %}#f44336{% endif %};">
+                        GHS {{ mtn_daily_profit|floatformat:2 }}
+                    </div>
+                    <div class="stat-sub">Debt: GHS {{ mtn_agent_debt|floatformat:2 }}</div>
+                </div>
+            </div>
+
+            <div style="margin-top:24px;">
+                <p class="section-title">Daily History <span style="font-size:0.75rem; color:var(--muted); font-weight:400;">(last 15 days)</span></p>
+                {% if mtn_history %}
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Orders</th>
+                                <th>API Base (GHS)</th>
+                                <th>Manual Base (GHS)</th>
+                                <th>Total Base (GHS)</th>
+                                <th>Profit (GHS)</th>
+                                <th>Agents</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in mtn_history %}
+                            <tr>
+                                <td><strong>{{ day.date }}</strong></td>
+                                <td>{{ day.order_count }}</td>
+                                <td style="color:var(--primary);">{{ day.api_revenue|floatformat:2 }}</td>
+                                <td style="color:var(--primary);">{{ day.manual_revenue|floatformat:2 }}</td>
+                                <td><strong style="color:var(--primary);">{{ day.total_revenue|floatformat:2 }}</strong></td>
+                                <td>
+                                    <strong style="color:{% if day.profit >= 0 %}#00c853{% else %}#f44336{% endif %};">
+                                        {% if day.profit >= 0 %}+{% endif %}{{ day.profit|floatformat:2 }}
+                                    </strong>
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline btn-sm" onclick="toggleRow('day-{{ forloop.counter }}')">
+                                        <i class="fa fa-chevron-down"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr id="day-{{ forloop.counter }}" style="display:none;">
+                                <td colspan="7" style="padding:0;">
+                                    <div style="background:var(--surface2); padding:14px 20px; border-top:1px solid var(--border);">
+                                        {% if day.agent_breakdown %}
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th style="font-size:0.75rem;">Agent</th>
+                                                    <th style="font-size:0.75rem;">Orders</th>
+                                                    <th style="font-size:0.75rem;">Base (GHS)</th>
+                                                    <th style="font-size:0.75rem;">Profit (GHS)</th>
+                                                    <th style="font-size:0.75rem;">Debt (GHS)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for a in day.agent_breakdown %}
+                                                <tr>
+                                                    <td style="font-size:0.85rem;">{{ a.name }}</td>
+                                                    <td style="font-size:0.85rem;">{{ a.count }}</td>
+                                                    <td style="font-size:0.85rem; color:var(--primary);">{{ a.base|floatformat:2 }}</td>
+                                                    <td style="font-size:0.85rem; color:{% if a.profit >= 0 %}#00c853{% else %}#f44336{% endif %};">
+                                                        {% if a.profit >= 0 %}+{% endif %}{{ a.profit|floatformat:2 }}
+                                                    </td>
+                                                    <td style="font-size:0.85rem; color:#f44336;">{{ a.debt|floatformat:2 }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                        {% else %}
+                                        <p style="color:var(--muted); font-size:0.85rem;">No agent breakdown.</p>
+                                        {% endif %}
+                                        {% if day.guest_count > 0 or day.link_count > 0 %}
+                                        <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th style="font-size:0.75rem;">Source</th>
+                                                        <th style="font-size:0.75rem;">Orders</th>
+                                                        <th style="font-size:0.75rem;">Base (GHS)</th>
+                                                        <th style="font-size:0.75rem;">Profit (GHS)</th>
+                                                        <th style="font-size:0.75rem;">Debt (GHS)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% if day.guest_count > 0 %}
+                                                    <tr style="background:rgba(33,150,243,0.06);">
+                                                        <td style="font-size:0.85rem; font-weight:600; color:#2196f3;">Customer Orders</td>
+                                                        <td style="font-size:0.85rem;">{{ day.guest_count }}</td>
+                                                        <td style="font-size:0.85rem; color:var(--primary);">{{ day.guest_base|floatformat:2 }}</td>
+                                                        <td style="font-size:0.85rem; color:#00c853;"><strong>+{{ day.guest_profit|floatformat:2 }}</strong></td>
+                                                        <td style="font-size:0.85rem; color:var(--muted);">-</td>
+                                                    </tr>
+                                                    {% endif %}
+                                                    {% if day.link_count > 0 %}
+                                                    <tr style="background:rgba(99,102,241,0.06);">
+                                                        <td style="font-size:0.85rem; font-weight:600; color:#6366f1;">Link Orders</td>
+                                                        <td style="font-size:0.85rem;">{{ day.link_count }}</td>
+                                                        <td style="font-size:0.85rem; color:var(--primary);">{{ day.link_base|floatformat:2 }}</td>
+                                                        <td style="font-size:0.85rem; color:#00c853;"><strong>+{{ day.link_profit|floatformat:2 }}</strong></td>
+                                                        <td style="font-size:0.85rem; color:var(--muted);">-</td>
+                                                    </tr>
+                                                    {% endif %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="color:var(--muted); font-size:0.9rem; text-align:center; padding:24px 0;">No MTN revenue history yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Other Networks 15-Day History ── #}
+        {% if other_network_history %}
+        <div class="card" style="margin-bottom:28px; border-color:rgba(33,150,243,0.3);">
+            <p class="section-title" style="margin-bottom:20px;">📡 Other Networks — 15-Day History</p>
+            {% for net_data in other_network_history %}
+            <div style="margin-bottom:28px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                    <strong style="font-size:1rem;">{{ net_data.network }}</strong>
+                    <div style="display:flex; gap:16px; font-size:0.85rem; color:var(--muted);">
+                        <span>15-day Revenue: <strong style="color:var(--text);">GHS {{ net_data.total_revenue|floatformat:2 }}</strong></span>
+                        <span>15-day Profit:
+                            <strong style="color:{% if net_data.total_profit >= 0 %}#00c853{% else %}#f44336{% endif %};">
+                                GHS {{ net_data.total_profit|floatformat:2 }}
+                            </strong>
+                        </span>
+                    </div>
+                </div>
+                {% if net_data.history %}
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Orders</th>
+                                <th>Revenue (GHS)</th>
+                                <th>Cost (GHS)</th>
+                                <th>Profit (GHS)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in net_data.history %}
+                            <tr>
+                                <td><strong>{{ row.date }}</strong></td>
+                                <td>{{ row.count }}</td>
+                                <td style="color:#2196f3;">{{ row.revenue|floatformat:2 }}</td>
+                                <td style="color:var(--muted);">{{ row.cost|floatformat:2 }}</td>
+                                <td>
+                                    <strong style="color:{% if row.profit >= 0 %}#00c853{% else %}#f44336{% endif %};">
+                                        {% if row.profit >= 0 %}+{% endif %}{{ row.profit|floatformat:2 }}
+                                    </strong>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="color:var(--muted); font-size:0.85rem; padding:12px 0;">No orders in the last 15 days.</p>
+                {% endif %}
+            </div>
+            {% if not forloop.last %}<hr style="border-color:var(--border); margin:0 0 24px;">{% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# ── AFA 15-Day History ── #}
+        <div class="card" style="margin-bottom:28px; border-color:rgba(156,39,176,0.3);">
+            <p class="section-title" style="margin-bottom:4px;">🪪 AFA — 15-Day History</p>
+            <p style="font-size:0.8rem; color:var(--muted); margin-bottom:20px;">
+                Agent price: GHS {{ afa_agent_price }} &nbsp;·&nbsp; Customer price: GHS {{ afa_customer_price }}
+            </p>
+            {% if afa_history %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Applications</th>
+                            <th>Revenue (GHS)</th>
+                            <th>Profit (GHS)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in afa_history %}
+                        <tr>
+                            <td><strong>{{ row.date }}</strong></td>
+                            <td>{{ row.count }}</td>
+                            <td style="color:#9c27b0;">{{ row.revenue|floatformat:2 }}</td>
+                            <td>
+                                <strong style="color:{% if row.profit >= 0 %}#00c853{% else %}#f44336{% endif %};">
+                                    {% if row.profit >= 0 %}+{% endif %}{{ row.profit|floatformat:2 }}
+                                </strong>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="color:var(--muted); font-size:0.9rem; text-align:center; padding:24px 0;">No AFA applications in the last 15 days.</p>
+            {% endif %}
+        </div>
+
+        {# ── Last 15 Transactions ── #}
+        <div class="card" style="margin-bottom:28px;">
+            <p class="section-title"><i class="fa fa-clock-rotate-left"></i> Last 15 MTN Transactions</p>
+            {% if recent_transactions %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Order ID</th>
+                            <th>Recipient</th>
+                            <th>GB</th>
+                            <th>Paid (GHS)</th>
+                            <th>Cost (GHS)</th>
+                            <th>Profit (GHS)</th>
+                            <th>Source</th>
+                            <th>Agent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in recent_transactions %}
+                        <tr>
+                            <td style="font-size:0.8rem; color:var(--muted);">{{ tx.date|date:"d M, H:i" }}</td>
+                            <td style="font-size:0.8rem; font-family:monospace;">{{ tx.order_id }}</td>
+                            <td>{{ tx.recipient }}</td>
+                            <td>{{ tx.gb_size }}GB</td>
+                            <td style="color:var(--primary); font-weight:700;">{{ tx.paid|floatformat:2 }}</td>
+                            <td style="color:var(--muted);">{{ tx.base|floatformat:2 }}</td>
+                            <td>
+                                <strong style="color:{% if tx.profit >= 0 %}#00c853{% else %}#f44336{% endif %};">
+                                    {% if tx.profit >= 0 %}+{% endif %}{{ tx.profit|floatformat:2 }}
+                                </strong>
+                            </td>
+                            <td style="font-size:0.8rem;">{{ tx.source }}</td>
+                            <td style="font-size:0.85rem;">{{ tx.placed_by }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="color:var(--muted); font-size:0.9rem;">No transactions yet.</p>
+            {% endif %}
+        </div>
+
+        {# ── Top 5 Sellers ── #}
+        <div class="card">
+            <p class="section-title">Top 5 Sellers Today</p>
+            <table>
+                <thead><tr><th>#</th><th>Agent</th><th>Orders Today</th></tr></thead>
+                <tbody>
+                    {% for agent in top_sellers_today %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ agent.full_name }}</td>
+                        <td><strong style="color:var(--primary);">{{ agent.order_count }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" style="text-align:center; color:var(--muted);">No orders today yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    
+<script>
+(function(){
+  var CIRC = 276.5, MAX = 300;
+  function lp_refresh(){
+    fetch('/admin-panel/link-profit-live/')
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var profit = d.profit || 0, count = d.count || 0;
+        var pct    = Math.min(1, profit / MAX);
+        var arc    = document.getElementById('lp-arc');
+        if(arc) arc.style.strokeDashoffset = (CIRC*(1-pct)).toFixed(1);
+        var v = document.getElementById('lp-val');
+        if(v) v.textContent = 'GHS '+profit.toFixed(2);
+        var c = document.getElementById('lp-count');
+        if(c) c.textContent = count+' order'+(count!==1?'s':'');
+        var p = document.getElementById('lp-pulse');
+        if(p){ p.textContent='● LIVE'; p.style.color='#4ade80'; }
+      })
+      .catch(function(){
+        var p = document.getElementById('lp-pulse');
+        if(p){ p.textContent='○ offline'; p.style.color='#f87171'; }
+      });
+  }
+  lp_refresh();
+  setInterval(lp_refresh, 30000);
+})();
+</script></main>
+</div>
+
+<style>
+@keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 3px rgba(229,57,53,0.2); }
+    50%      { box-shadow: 0 0 0 6px rgba(229,57,53,0.05); }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleRow(id) {
+    const row = document.getElementById(id);
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+
+function handleSiteSwitch(checkbox) {
+    const action = checkbox.checked ? 'open' : 'close';
+    checkbox.checked = !checkbox.checked;
+    openSiteToggleModal(action);
+}
+
+function openSiteToggleModal(action) {
+    const modal = document.getElementById('siteToggleModal');
+    const title = document.getElementById('modalTitle');
+    const desc  = document.getElementById('modalDesc');
+    const btn   = document.getElementById('modalConfirmBtn');
+    const errEl = document.getElementById('modalError');
+    const input = document.getElementById('confirmPasswordInput');
+
+    document.getElementById('modalAction').value = action;
+    errEl.textContent = '';
+    input.value = '';
+
+    if (action === 'close') {
+        title.textContent    = '⚠️ Close the Site?';
+        desc.textContent     = 'This will block all agents and customers from accessing SK Plug. Enter your password to confirm.';
+        btn.style.background = '#e53935';
+        btn.textContent      = 'Yes, Close Site';
+    } else {
+        title.textContent    = '✅ Open the Site?';
+        desc.textContent     = 'This will allow everyone to access SK Plug again. Enter your password to confirm.';
+        btn.style.background = '#00c853';
+        btn.textContent      = 'Yes, Open Site';
+    }
+
+    modal.style.display = 'flex';
+    setTimeout(() => input.focus(), 100);
+}
+
+function closeSiteToggleModal() {
+    document.getElementById('siteToggleModal').style.display = 'none';
+}
+
+document.getElementById('siteToggleModal').addEventListener('click', function(e) {
+    if (e.target === this) closeSiteToggleModal();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeSiteToggleModal();
+});
+
+document.getElementById('siteToggleForm').addEventListener('submit', function(e) {
+    const input = document.getElementById('confirmPasswordInput');
+    const errEl = document.getElementById('modalError');
+    if (!input.value.trim()) {
+        e.preventDefault();
+        errEl.textContent = 'Please enter your password.';
+        input.focus();
+    }
+});
+</script>
+{% endblock %}

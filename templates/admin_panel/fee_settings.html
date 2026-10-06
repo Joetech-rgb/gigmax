@@ -1,0 +1,83 @@
+﻿{% extends 'base.html' %}
+{% block title %}Fee Settings — SK Plug{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px;">
+        <h1 class="page-title" style="margin-bottom:28px;">Fee Settings</h1>
+        {% if messages %}{% for msg in messages %}
+        <div style="padding:12px 16px;border-radius:8px;margin-bottom:16px;
+                    background:{% if msg.tags == 'error' %}rgba(244,67,54,0.12){% else %}rgba(0,200,83,0.12){% endif %};
+                    border:1px solid {% if msg.tags == 'error' %}rgba(244,67,54,0.3){% else %}rgba(0,200,83,0.3){% endif %};
+                    color:{% if msg.tags == 'error' %}#f44336{% else %}#00c853{% endif %};">{{ msg }}</div>
+        {% endfor %}{% endif %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+            <div class="card" style="border-color:rgba(99,102,241,0.3);">
+                <p class="section-title" style="margin-bottom:20px;">Configure Fees</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <div style="display:grid;gap:16px;">
+                        <div>
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Paystack Fee (%)</label>
+                            <input type="number" step="0.01" name="paystack_fee" value="{{ config.paystack_fee_percent }}"
+                                   style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border,#444);background:var(--surface2,#2a2a3e);color:inherit;font-size:0.9rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Admin Share (%)</label>
+                            <input type="number" step="0.01" name="admin_share" value="{{ config.admin_share_percent }}"
+                                   style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border,#444);background:var(--surface2,#2a2a3e);color:inherit;font-size:0.9rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Agent Share (%)</label>
+                            <input type="number" step="0.01" name="agent_share" value="{{ config.agent_share_percent }}"
+                                   style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border,#444);background:var(--surface2,#2a2a3e);color:inherit;font-size:0.9rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;">Operational Cost (%)</label>
+                            <input type="number" step="0.01" name="operational_cost" value="{{ config.operational_cost_percent }}"
+                                   style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border,#444);background:var(--surface2,#2a2a3e);color:inherit;font-size:0.9rem;box-sizing:border-box;">
+                        </div>
+                        <button type="submit" style="padding:11px 24px;border-radius:8px;border:none;background:var(--primary,#6366f1);color:#fff;font-weight:700;font-size:0.95rem;cursor:pointer;">Save Settings</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card" style="border-color:rgba(255,193,7,0.3);">
+                <p class="section-title" style="margin-bottom:20px;">Example Breakdown (GHS 100)</p>
+                {% if example %}
+                <div style="display:grid;gap:12px;">
+                    <div style="display:flex;justify-content:space-between;padding:12px 16px;border-radius:8px;background:rgba(244,67,54,0.08);border:1px solid rgba(244,67,54,0.2);">
+                        <span style="color:var(--muted);">Paystack Fee</span>
+                        <strong style="color:#f44336;">- GHS {{ example.paystack_fee|floatformat:2 }}</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:12px 16px;border-radius:8px;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.2);">
+                        <span style="color:var(--muted);">After Paystack</span>
+                        <strong style="color:#ffc107;">GHS {{ example.after_paystack|floatformat:2 }}</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:12px 16px;border-radius:8px;background:rgba(244,67,54,0.08);border:1px solid rgba(244,67,54,0.2);">
+                        <span style="color:var(--muted);">Operational Cost</span>
+                        <strong style="color:#f44336;">- GHS {{ example.operational_cost|floatformat:2 }}</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:12px 16px;border-radius:8px;background:rgba(0,200,83,0.08);border:1px solid rgba(0,200,83,0.2);">
+                        <span style="color:var(--muted);">Admin Share</span>
+                        <strong style="color:#00c853;">GHS {{ example.admin_share|floatformat:2 }}</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:12px 16px;border-radius:8px;background:rgba(33,150,243,0.08);border:1px solid rgba(33,150,243,0.2);">
+                        <span style="color:var(--muted);">Agent Share</span>
+                        <strong style="color:#2196f3;">GHS {{ example.agent_share|floatformat:2 }}</strong>
+                    </div>
+                </div>
+                {% endif %}
+                <div style="margin-top:20px;padding:14px 16px;border-radius:8px;background:var(--surface2,#2a2a3e);border:1px solid var(--border,#333);">
+                    <p style="font-size:0.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Current Config</p>
+                    <div style="display:grid;gap:6px;font-size:0.85rem;">
+                        <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Paystack Fee</span><strong>{{ config.paystack_fee_percent }}%</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Admin Share</span><strong>{{ config.admin_share_percent }}%</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Agent Share</span><strong>{{ config.agent_share_percent }}%</strong></div>
+                        <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Operational Cost</span><strong>{{ config.operational_cost_percent }}%</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

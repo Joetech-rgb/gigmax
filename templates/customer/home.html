@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}SK Plug — Buy Data Bundles{% endblock %}
+{% block body %}
+
+{% if promo_packages %}
+{% with promo=promo_packages.first %}
+<div style="background:linear-gradient(135deg,rgba(0,200,83,0.12),rgba(0,150,36,0.06));
+            border:1px solid rgba(0,200,83,0.3); border-radius:16px;
+            padding:24px 28px; margin:24px auto; max-width:900px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px;">
+        <div style="display:flex; align-items:center; gap:16px;">
+            <span style="font-size:2.2rem;">🔥</span>
+            <div>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                    <span style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.2rem; color:var(--primary);">
+                        HOT PROMO
+                    </span>
+                    <span class="badge badge-warning" style="font-size:0.75rem;">Limited Time</span>
+                </div>
+                <p style="margin:0; color:var(--text); font-size:1rem;">
+                    <strong>{{ promo.gb_size|floatformat:0 }}GB</strong>
+                    for only
+                    <strong style="color:var(--primary);">GHS {{ promo.customer_price }}</strong>
+                    {% if promo.network %} — {{ promo.get_network_display }}{% endif %}
+                    {% if promo.label %} &nbsp;<span class="badge badge-success" style="font-size:0.7rem;">{{ promo.label }}</span>{% endif %}
+                </p>
+            </div>
+        </div>
+        <form method="GET" action="/checkout/{{ promo.id }}/"
+              style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="tel" name="phone" placeholder="024XXXXXXX" required
+                   inputmode="numeric" pattern="0[0-9]{9}" maxlength="10"
+                   oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)"
+                   class="form-control"
+                   style="border-radius:30px; border-color:var(--primary); width:180px;">
+            <button type="submit" class="btn btn-primary" style="border-radius:30px; white-space:nowrap;">
+                Grab Promo →
+            </button>
+        </form>
+    </div>
+</div>
+{% endwith %}
+{% endif %}
+
+<div class="home-wrap">
+    <div class="hero">
+        <h1>Fast. Cheap. <span style="color:var(--primary);">Reliable.</span></h1>
+        <p>Buy data bundles for MTN, Telecel, AirtelTigo and more.</p>
+        <a href="/buy/" class="btn btn-primary" style="margin-top:24px; font-size:1.1rem; padding:16px 36px;">
+            Buy Data Now
+        </a>
+    </div>
+
+    <div class="networks-grid">
+        <a href="/buy/?network=MTN"        class="net-card"><div class="net-icon">📶</div><span>MTN</span></a>
+        <a href="/buy/?network=TELECEL"     class="net-card"><div class="net-icon">📡</div><span>Telecel</span></a>
+        <a href="/buy/?network=AT_NOEXPIRY" class="net-card"><div class="net-icon">📱</div><span>AT Non-Expiry</span></a>
+        <a href="/buy/?network=AT_EXPIRY"   class="net-card"><div class="net-icon">📱</div><span>AT Expiry</span></a>
+        <a href="/afa/apply/"               class="net-card"><div class="net-icon">&#x1F194;</div><span>AFA Bundle</span></a>
+    </div>
+
+    {% if not user.is_authenticated %}
+    <div style="text-align:center; margin-top:48px;">
+        <a href="/accounts/signup/" class="btn btn-outline">Become a Reseller / Agent / Dealer</a>
+    </div>
+    {% endif %}
+
+    {# Single Rules dropdown #}
+    <div style="margin-top:64px; max-width:680px; margin-left:auto; margin-right:auto;">
+
+        <button class="rules-toggle" onclick="toggleRules(this)">
+            <span>📋 Rules &amp; Regulations</span>
+            <span class="rules-icon">+</span>
+        </button>
+
+        <div class="rules-body" id="rules_body">
+
+            <div class="rule-row">
+                <span class="rule-emoji">🔒</span>
+                <div>
+                    <strong>Orders Are Final</strong>
+                    <p>All orders are final and cannot be refunded once placed. Double-check before submitting.</p>
+                </div>
+            </div>
+
+            <div class="rule-row">
+                <span class="rule-emoji">📞</span>
+                <div>
+                    <strong>Correct Number</strong>
+                    <p>Ensure you enter the correct recipient number. We are not responsible for wrong numbers entered.</p>
+                </div>
+            </div>
+
+            <div class="rule-row">
+                <span class="rule-emoji">⏱️</span>
+                <div>
+                    <strong>Delivery Time</strong>
+                    <p>Delivery is within 1–15 minutes. It may delay if <strong style="color:#e53935;">validation</strong> sets in, usually taking hours.</p>
+                </div>
+            </div>
+
+            <div class="rule-row">
+                <span class="rule-emoji">💬</span>
+                <div>
+                    <strong>Support &amp; Confirmation</strong>
+                    <p>Join our WhatsApp Community for updates. Confirm your order once delivered — no complaints after <strong>24 hours</strong>.</p>
+                </div>
+            </div>
+
+            <div class="rule-row">
+                <span class="rule-emoji">⚠️</span>
+                <div>
+                    <strong>MTN Restrictions</strong>
+                    <p>Do not send orders to MTN numbers with unpaid airtime. Orders may delay if number verification is required.</p>
+                </div>
+            </div>
+
+            <div class="rule-row">
+                <span class="rule-emoji">📸</span>
+                <div>
+                    <strong>Complaints</strong>
+                    <p>All complaints must include screenshots as proof. Complaints without evidence will not be processed.</p>
+                </div>
+            </div>
+
+            <div class="rule-row" style="border-bottom:none;">
+                <span class="rule-emoji">🚫</span>
+                <div>
+                    <strong>Restricted SIM Types</strong>
+                    <ul style="margin:6px 0 0; padding-left:18px; font-size:0.85rem; color:var(--muted); line-height:1.8;">
+                        <li><strong>MTN:</strong> TurboNet · Broadband · Agent/Merchant · Transfer · Blacklisted · Enterprise</li>
+                        <li><strong>AirtelTigo:</strong> Student Hybrid · Deactivated · Airtel Money</li>
+                        <li><strong>Telecel:</strong> Telecash · Corporate · International Roaming</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+.home-wrap { max-width:900px; margin:0 auto; padding:48px 24px; }
+.hero { text-align:center; margin-bottom:48px; }
+.hero h1 { font-size:clamp(2rem,5vw,3.5rem); font-weight:800; line-height:1.1; }
+.hero p { color:var(--muted); font-size:1.1rem; margin-top:12px; }
+
+.networks-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:16px;
+}
+.net-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:28px 20px;
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+    font-family:'Syne',sans-serif; font-weight:600; color:var(--text);
+    transition:all 0.2s;
+}
+.net-card:hover { border-color:var(--primary); transform:translateY(-2px); }
+.net-icon { font-size:2rem; }
+
+/* Single rules dropdown */
+.rules-toggle {
+    width:100%; background:var(--surface); border:1.5px solid var(--border);
+    border-radius:12px; padding:16px 20px; cursor:pointer;
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:15px; font-weight:700; color:var(--text);
+    font-family:'DM Sans', sans-serif;
+    transition: border-color 0.2s;
+}
+.rules-toggle:hover { border-color:var(--primary); }
+.rules-icon {
+    font-size:22px; color:var(--muted);
+    transition:transform 0.2s;
+}
+.rules-icon.open { transform:rotate(45deg); }
+
+.rules-body {
+    display:none;
+    border:1.5px solid var(--border);
+    border-top:none;
+    border-radius:0 0 12px 12px;
+    padding:8px 20px 4px;
+    background:var(--surface);
+}
+.rules-body.open { display:block; }
+
+.rule-row {
+    display:flex; gap:14px; align-items:flex-start;
+    padding:14px 0;
+    border-bottom:1px solid var(--border);
+}
+.rule-emoji { font-size:1.3rem; flex-shrink:0; margin-top:2px; }
+.rule-row strong { font-size:0.92rem; color:var(--text); display:block; margin-bottom:4px; }
+.rule-row p { font-size:0.84rem; color:var(--muted); margin:0; line-height:1.6; }
+</style>
+
+<script>
+function toggleRules(btn) {
+    const body = document.getElementById('rules_body');
+    const icon = btn.querySelector('.rules-icon');
+    const isOpen = body.classList.contains('open');
+    if (isOpen) {
+        body.classList.remove('open');
+        icon.classList.remove('open');
+        btn.style.borderRadius = '12px';
+    } else {
+        body.classList.add('open');
+        icon.classList.add('open');
+        btn.style.borderRadius = '12px 12px 0 0';
+    }
+}
+</script>
+
+{% endblock %}

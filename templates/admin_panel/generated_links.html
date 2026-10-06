@@ -1,0 +1,86 @@
+﻿{% extends 'base.html' %}
+{% block title %}Generated Links â€” Admin{% endblock %}
+{% block body %}
+<div style="display:flex;">
+    {% include 'partials/sidebar.html' %}
+    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; min-width:0;">
+        <h1 class="page-title">Generated Links</h1>
+
+        <div style="display:flex;gap:16px;margin-bottom:20px;">
+            <div class="card" style="flex:1;padding:20px;text-align:center;">
+                <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Total Available Balance</div>
+                <div style="font-size:28px;font-weight:700;color:var(--primary);">GHS {{ total_available|floatformat:2 }}</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Across All Agents</div>
+            </div>
+            <div class="card" style="flex:1;padding:20px;text-align:center;">
+                <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Total All-Time Earned</div>
+                <div style="font-size:28px;font-weight:700;color:var(--success);">GHS {{ total_earned|floatformat:2 }}</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Across All Agents</div>
+            </div>
+        </div>
+        <div class="card table-wrap">
+            <table style="min-width:950px;">
+                <thead>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Label</th>
+                        <th>Link</th>
+                        <th>Orders</th>
+                        <th>Revenue</th>
+                        <th>Available Balance</th>
+                        <th>All Time Earned</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for link in links %}
+                    <tr>
+                        <td><strong>{{ link.agent.full_name }}</strong></td>
+                        <td>{{ link.label|default:"â€”" }}</td>
+                        <td>
+                            <code style="font-size:0.75rem; word-break:break-all;">
+                                /buy/link/{{ link.token }}/
+                            </code>
+                        </td>
+                        <td>{{ link.total_orders }}</td>
+                        <td>GHS {{ link.total_revenue|floatformat:2 }}</td>
+                        <td style="color:#00C853; font-weight:600;">
+                            GHS {{ link.agent.link_profit_balance|floatformat:2 }}
+                        </td>
+                        <td style="color:#2979FF; font-weight:600;">
+                            GHS {{ link.agent.total_link_profit_earned|floatformat:2 }}
+                        </td>
+                        <td>
+                            <span class="badge {% if link.is_active %}badge-success{% else %}badge-danger{% endif %}">
+                                {% if link.is_active %}Active{% else %}Off{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <a href="/admin-panel/links/{{ link.pk }}/toggle/"
+                                   class="btn btn-sm btn-outline">
+                                    {% if link.is_active %}Turn Off{% else %}Turn On{% endif %}
+                                </a>
+                                <a href="/admin-panel/links/{{ link.pk }}/delete/"
+                                   class="btn btn-sm btn-danger"
+                                   onclick="return confirm('Delete this link?')">
+                                    Delete
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align:center; color:var(--muted); padding:32px;">
+                            No generated links yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+{% endblock %}
+

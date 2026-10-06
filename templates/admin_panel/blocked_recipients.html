@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Blocked Numbers – SK Plug{% endblock %}
+{% block body %}
+
+{% include 'partials/sidebar.html' %}
+
+<div class="main-content">
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+
+    <div style="margin-bottom:24px">
+        <h1 class="page-title" style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <i class="fa fa-ban" style="color:#FF1744"></i> Blocked Numbers
+        </h1>
+        <p style="color:var(--muted);font-size:0.9rem">
+            These numbers will never receive bundles regardless of order source.
+            Payment is taken, agent sees <strong>delivered</strong>, Gati is skipped.
+        </p>
+    </div>
+
+    <!-- Recovery Progress -->
+    <div class="card" style="margin-bottom:20px">
+        <div class="grid-4" style="margin-bottom:20px">
+            <div class="stat-card">
+                <div class="stat-label">Total Recovered</div>
+                <div class="stat-value">GHS {{ total_recovered }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Remaining</div>
+                <div class="stat-value" style="color:#FF6D00">GHS {{ remaining }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Target</div>
+                <div class="stat-value" style="color:var(--text)">GHS {{ recovery_target }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Blocked Numbers</div>
+                <div class="stat-value" style="color:#2196F3">{{ total_blocked }}</div>
+            </div>
+        </div>
+        <div style="background:var(--border);border-radius:99px;height:14px;overflow:hidden">
+            <div style="background:linear-gradient(90deg,var(--primary),#00e676);height:100%;width:{{ recovery_percent }}%;border-radius:99px;transition:width 0.6s ease"></div>
+        </div>
+        <div style="text-align:center;margin-top:8px;font-size:0.85rem;color:var(--muted)">
+            {{ recovery_percent }}% of GHS {{ recovery_target }} recovered
+        </div>
+    </div>
+
+    <!-- Add Number -->
+    <div class="card" style="margin-bottom:20px">
+        <h3 style="margin-bottom:14px;font-size:1rem">Add Number to Block List</h3>
+        <form method="POST" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add">
+            <input type="text" name="recipient" placeholder="e.g. 0244000000" required class="form-control" style="flex:1;min-width:140px">
+            <input type="text" name="reason" value="Double delivery on 3rd May 2026" class="form-control" style="flex:2;min-width:200px">
+            <button type="submit" class="btn btn-primary" style="white-space:nowrap">+ Add</button>
+        </form>
+    </div>
+
+    <!-- #5 Search blocked numbers -->
+    <div class="card" style="margin-bottom:16px; padding:14px 18px;">
+        <form method="GET" style="display:flex; gap:10px; align-items:center;">
+            <input type="text" name="search_blocked" value="{{ search_blocked }}"
+                   placeholder="Search blocked number…" class="form-control" style="flex:1; max-width:280px;">
+            <button type="submit" class="btn btn-primary btn-sm">Search</button>
+            {% if search_blocked %}
+            <a href="?" class="btn btn-outline btn-sm">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="card">
+        <h3 style="margin-bottom:16px;font-size:1rem">
+            All Blocked Numbers ({{ total_blocked }})
+            {% if search_blocked %}
+            <span style="font-size:0.8rem; color:var(--muted); font-weight:400;">— filtered by "{{ search_blocked }}"</span>
+            {% endif %}
+        </h3>
+        {% if blocked_data %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Number</th>
+                        <th>Reason</th>
+                        <th style="text-align:center">Orders</th>
+                        <th style="text-align:right">Recovered (GHS)</th>
+                        <th style="text-align:center">Blocked On</th>
+                        <th style="text-align:center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in blocked_data %}
+                    <tr>
+                        <td>
+                            <!-- Red dot indicator -->
+                            <span style="display:inline-block; width:8px; height:8px; background:#FF1744; border-radius:50%; margin-right:6px; vertical-align:middle;"></span>
+                            <span style="font-family:monospace;font-weight:700;letter-spacing:0.03em">{{ item.obj.recipient }}</span>
+                        </td>
+                        <td style="color:var(--muted);font-size:0.82rem">{{ item.obj.reason }}</td>
+                        <td style="text-align:center">
+                            {% if item.count > 0 %}
+                            <span class="badge badge-warning">{{ item.count }}</span>
+                            {% else %}
+                            <span style="color:var(--muted)">0</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align:right;font-weight:700;color:var(--primary)">
+                            {% if item.recovered > 0 %}{{ item.recovered }}{% else %}<span style="color:var(--muted)">0.00</span>{% endif %}
+                        </td>
+                        <td style="text-align:center;color:var(--muted);font-size:0.8rem">{{ item.obj.created_at|date:"d M Y" }}</td>
+                        <td style="text-align:center">
+                            <form method="POST" onsubmit="return confirm('Remove {{ item.obj.recipient }} from block list?\n\nThey will receive bundles normally on their next order.')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="remove">
+                                <input type="hidden" name="recipient_id" value="{{ item.obj.pk }}">
+                                <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:48px;color:var(--muted)">
+            <i class="fa fa-check-circle" style="font-size:2rem;color:var(--primary);display:block;margin-bottom:12px"></i>
+            {% if search_blocked %}No results for "{{ search_blocked }}".{% else %}No blocked numbers.{% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock body %}
