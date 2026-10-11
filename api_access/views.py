@@ -391,11 +391,7 @@ def register_callback_api(request):
     return Response({
         'message'     : 'Callback URL registered successfully.',
         'callback_url': user.callback_url,
-<<<<<<< ours
         'note'        : 'We will POST to this URL when your orders are delivered. Verify using X-GigMax-Signature header.',
-    })
-=======
-        'note'        : 'We will POST to this URL when your orders are delivered. Verify using X-SKPlug-Signature header.',
     })
 
 
@@ -447,4 +443,3 @@ def refunded_orders_api(request):
             'refunded_at': (o.refund_paid_at or o.updated_at).isoformat(),
         } for o in page],
     })
->>>>>>> theirs

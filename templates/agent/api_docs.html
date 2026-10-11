@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}API Docs – SK Plug{% endblock %}
+{% block title %}API Docs â€“ SK Plug{% endblock %}
 {% block body %}
 <div style="display:flex;">
     {% include 'partials/sidebar.html' %}
@@ -33,19 +33,19 @@
         </div>
 
         <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">POST /api/v1/order/ – Place Order</p>
+            <p class="section-title">POST /api/v1/order/ â€“ Place Order</p>
             <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">{
   "recipient": "0557581711",
   "network": "MTN",
   "gb_size": "5"
 }</pre>
             <p style="color:var(--muted); font-size:0.85rem; margin-top:12px; margin-bottom:6px;">Valid <code>network</code> values:</p>
-            <pre style="background:var(--surface2); padding:12px 16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">"MTN"          – MTN
-"TELECEL"      – Telecel
-"AT_EXPIRY"    – AirtelTigo, expiry bundle
-"AT_NOEXPIRY"  – AirtelTigo, no-expiry bundle</pre>
+            <pre style="background:var(--surface2); padding:12px 16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">"MTN"          â€“ MTN
+"TELECEL"      â€“ Telecel
+"AT_EXPIRY"    â€“ AirtelTigo, expiry bundle
+"AT_NOEXPIRY"  â€“ AirtelTigo, no-expiry bundle</pre>
             <p style="color:var(--muted); font-size:0.85rem; margin-top:12px;">
-                Note: AirtelTigo is split into two variants — there is no plain <code>"AT"</code> value.
+                Note: AirtelTigo is split into two variants â€” there is no plain <code>"AT"</code> value.
                 Use <code>GET /api/v1/bundles/</code> to fetch the current list of active networks and gb_size options at any time.
             </p>
             <p style="color:var(--muted); font-size:0.85rem; margin-top:12px; margin-bottom:6px;">If network/gb_size is invalid:</p>
@@ -58,10 +58,6 @@
         </div>
 
         <div class="card" style="margin-bottom:16px;">
-<<<<<<< ours
-            <p class="section-title">GET /api/v1/orders/ – List My Orders</p>
-            <p style="color:var(--muted); font-size:0.9rem;">Returns all orders placed via API.</p>
-=======
             <p class="section-title">GET /api/v1/orders/ â€“ List My Orders</p>
             <p style="color:var(--muted); font-size:0.9rem;">Returns all orders placed via API. Supports <code>?page=</code>, <code>?page_size=</code> (max 200) and <code>?status=</code>, e.g. <code>?status=unverified</code>.</p>
             <hr style="border:none; border-top:1px solid var(--surface2); margin:16px 0;">
@@ -89,16 +85,15 @@
     }
   ]
 }</pre>
->>>>>>> theirs
         </div>
 
         <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">GET /api/v1/bundles/ – List Available Bundles</p>
+            <p class="section-title">GET /api/v1/bundles/ â€“ List Available Bundles</p>
             <p style="color:var(--muted); font-size:0.9rem;">Returns all active bundle packages.</p>
         </div>
 
         <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">GET /api/v1/balance/ – Check Wallet Balance</p>
+            <p class="section-title">GET /api/v1/balance/ â€“ Check Wallet Balance</p>
             <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns your current wallet balance, debt balance, and debt access status.</p>
             <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Request
 GET /api/v1/balance/
@@ -111,19 +106,14 @@ Authorization: Bearer YOUR_TOKEN
   "debt_access": false
 }</pre>
             <p style="color:var(--muted); font-size:0.85rem; margin-top:12px;">
-                <code>wallet_balance</code> and <code>debt_balance</code> are returned as strings to preserve exact decimal precision — parse them as decimals, not floats, in your integration.
-                <code>debt_access</code> indicates whether your account can carry a balance below zero (debt) — if <code>false</code>, orders will fail if your wallet balance is insufficient.
+                <code>wallet_balance</code> and <code>debt_balance</code> are returned as strings to preserve exact decimal precision â€” parse them as decimals, not floats, in your integration.
+                <code>debt_access</code> indicates whether your account can carry a balance below zero (debt) â€” if <code>false</code>, orders will fail if your wallet balance is insufficient.
             </p>
         </div>
 
         <div class="card" style="margin-bottom:16px;">
-<<<<<<< ours
-            <p class="section-title">GET /api/v1/orders-summary/ – Waiting, Refunded &amp; Refund-Requested Orders</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns your full waiting/refund picture in one call — orders you placed directly plus orders your customers placed through your generated links. Recommended endpoint for tracking money owed to you.</p>
-=======
             <p class="section-title">GET /api/v1/orders-summary/ â€“ Waiting, Unverified &amp; Refund-Requested Orders</p>
             <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns your full waiting/refund picture in one call â€” orders you placed directly plus orders your customers placed through your generated links. Recommended endpoint for tracking money owed to you.</p>
->>>>>>> theirs
             <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Request
 GET /api/v1/orders-summary/
 Authorization: Bearer YOUR_TOKEN
@@ -160,18 +150,14 @@ Authorization: Bearer YOUR_TOKEN
   }
 }</pre>
             <p style="color:var(--muted); font-size:0.85rem; margin-top:12px;">
-<<<<<<< ours
-                <code>gb_size</code> is the data bundle size in GB for that order. <code>amount_owed</code> is the amount payable to you — for orders placed through your generated links, this is your cost price, not the retail price your customer paid.
-=======
                 <code>gb_size</code> is the data bundle size in GB for that order. <code>amount_owed</code> is the amount payable to you â€” for orders placed through your generated links, this is your cost price, not the retail price your customer paid.
                 <code>unverified</code> lists unverified contacts (numbers we could not automatically confirm with the delivery network). They are under manual review and no refund is issued automatically.
->>>>>>> theirs
                 <code>refund_requested</code> lists orders where a refund was requested; each order includes a <code>paid</code> field indicating whether it has been paid out yet.
             </p>
         </div>
 
         <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">GET /api/v1/status/{order_id}/ – Check Order Status</p>
+            <p class="section-title">GET /api/v1/status/{order_id}/ â€“ Check Order Status</p>
             <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns the current status of a specific order.</p>
             <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Request
 GET /api/v1/status/SKP36648705/
@@ -192,19 +178,12 @@ Authorization: Bearer YOUR_TOKEN
 }
 
 // Possible status values:
-<<<<<<< ours
-// pending    – Order received, awaiting processing
-// processing – Sent to network, delivery in progress
-// delivered  – Data delivered successfully
-// failed     – Delivery failed</pre>
-=======
 // pending             â€“ Order received, awaiting processing
 // processing          â€“ Sent to network, delivery in progress
 // delivered           â€“ Data delivered successfully
 // failed              â€“ Delivery failed
 // waiting             â€“ Could not be delivered; held for review (no automatic refund)
 // unverified           â€“ Unverified contact; under manual review, no automatic refund</pre>
->>>>>>> theirs
         </div>
 
         <!-- -- WEBHOOK / CALLBACK ------------------------------------ -->
@@ -215,7 +194,7 @@ Authorization: Bearer YOUR_TOKEN
                 send a <strong>POST</strong> request to that URL when an order changes status. Events: <code>order.delivered</code>, <code>order.failed</code>, <code>order.waiting</code> and <code>order.unverified</code>. Orders that fail or cannot be verified are not refunded automatically; <code>order.refunded</code> is only sent if an admin manually refunds an order.
             </p>
 
-            <p class="section-title" style="font-size:0.9rem;">GET /api/v1/callback/ – Get Registered Callback URL</p>
+            <p class="section-title" style="font-size:0.9rem;">GET /api/v1/callback/ â€“ Get Registered Callback URL</p>
             <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns your currently registered callback URL.</p>
             <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Response
 {
@@ -224,7 +203,7 @@ Authorization: Bearer YOUR_TOKEN
 
             <hr style="border:none; border-top:1px solid var(--surface2); margin:16px 0;">
 
-            <p class="section-title" style="font-size:0.9rem;">POST /api/v1/callback/ – Register Callback URL</p>
+            <p class="section-title" style="font-size:0.9rem;">POST /api/v1/callback/ â€“ Register Callback URL</p>
             <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Register the URL on your server that should receive delivery notifications. Only needs to be done once.</p>
             <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Request body
 {
@@ -265,10 +244,10 @@ Authorization: Bearer YOUR_TOKEN
                 If your integration shows a generic error (e.g. "invalid response," "order failed") but you're not sure why, check these in order:
             </p>
             <ol style="color:var(--muted); font-size:0.9rem; padding-left:20px; line-height:1.8;">
-                <li><strong>Log the raw response.</strong> Before showing any error to your users, log the exact HTTP status code and response body you received. A generic catch-all error message hides the real cause — always inspect the actual response first.</li>
-                <li><strong>Confirm the request actually reached us.</strong> If you see a network-level error (timeout, connection refused, DNS failure) in your own logs, the request never reached our server — this is a connectivity issue on your end or your host's network, not something we can debug from our side.</li>
-                <li><strong>Check your base URL.</strong> Confirm you're calling <code>https://gigmax.com/api/v1/</code> exactly — typos or a stale/cached URL are a common cause of silent failures.</li>
-                <li><strong>Verify your network/gb_size values</strong> against the accepted list above — a 404 with <code>"Bundle package not found"</code> means one of these didn't match.</li>
+                <li><strong>Log the raw response.</strong> Before showing any error to your users, log the exact HTTP status code and response body you received. A generic catch-all error message hides the real cause â€” always inspect the actual response first.</li>
+                <li><strong>Confirm the request actually reached us.</strong> If you see a network-level error (timeout, connection refused, DNS failure) in your own logs, the request never reached our server â€” this is a connectivity issue on your end or your host's network, not something we can debug from our side.</li>
+                <li><strong>Check your base URL.</strong> Confirm you're calling <code>https://gigmax.com/api/v1/</code> exactly â€” typos or a stale/cached URL are a common cause of silent failures.</li>
+                <li><strong>Verify your network/gb_size values</strong> against the accepted list above â€” a 404 with <code>"Bundle package not found"</code> means one of these didn't match.</li>
                 <li><strong>Still stuck?</strong> Contact support with: the exact timestamp of the failed request, your account phone number, and the raw response (or network error) you received. Without these details we can't look up what happened on our end.</li>
             </ol>
         </div>
@@ -284,14 +263,14 @@ Authorization: Bearer YOUR_TOKEN
                     <option value="GET">GET</option>
                 </select>
                 <select id="test-endpoint" class="form-control" style="flex:1;">
-                    <option value="/api/v1/order/">POST /api/v1/order/ — Place Order</option>
-                    <option value="/api/v1/orders/">GET /api/v1/orders/ — List My Orders</option>
-                    <option value="/api/v1/bundles/">GET /api/v1/bundles/ — List Bundles</option>
-                    <option value="/api/v1/balance/">GET /api/v1/balance/ — Check Wallet Balance</option>
-                    <option value="/api/v1/orders-summary/">GET /api/v1/orders-summary/ — Waiting/Refund Summary</option>
-                    <option value="/api/v1/status/?status">GET /api/v1/status/{order_id}/ — Check Order Status</option>
-                    <option value="/api/v1/callback/?get">GET /api/v1/callback/ — Get Callback URL</option>
-                    <option value="/api/v1/callback/">POST /api/v1/callback/ — Register Callback URL</option>
+                    <option value="/api/v1/order/">POST /api/v1/order/ â€” Place Order</option>
+                    <option value="/api/v1/orders/">GET /api/v1/orders/ â€” List My Orders</option>
+                    <option value="/api/v1/bundles/">GET /api/v1/bundles/ â€” List Bundles</option>
+                    <option value="/api/v1/balance/">GET /api/v1/balance/ â€” Check Wallet Balance</option>
+                    <option value="/api/v1/orders-summary/">GET /api/v1/orders-summary/ â€” Waiting/Refund Summary</option>
+                    <option value="/api/v1/status/?status">GET /api/v1/status/{order_id}/ â€” Check Order Status</option>
+                    <option value="/api/v1/callback/?get">GET /api/v1/callback/ â€” Get Callback URL</option>
+                    <option value="/api/v1/callback/">POST /api/v1/callback/ â€” Register Callback URL</option>
                 </select>
             </div>
 
