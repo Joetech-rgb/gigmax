@@ -384,5 +384,5 @@ def register_callback_api(request):
     return Response({
         'message'     : 'Callback URL registered successfully.',
         'callback_url': user.callback_url,
-        'note'        : 'We will POST to this URL when your orders are delivered. Verify using X-SKPlug-Signature header.',
+        'note'        : 'We will POST to this URL when your orders are delivered. Verify using X-GigMax-Signature header.',
     })

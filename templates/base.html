@@ -10,14 +10,14 @@
     <meta property="og:site_name" content="SK Plug">
     <meta property="og:title" content="SK Plug - Fast and Reliable Data Bundles">
     <meta property="og:description" content="Buy MTN, Telecel and AT data bundles instantly. Fast delivery, best prices.">
-    <meta property="og:image" content="https://skdataplug.com/static/img/logo.png">
+    <meta property="og:image" content="https://gigmax.com/static/img/logo.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:url" content="https://skdataplug.com">
+    <meta property="og:url" content="https://gigmax.com">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="SK Plug - Fast and Reliable Data Bundles">
     <meta name="twitter:description" content="Buy MTN, Telecel and AT data bundles instantly.">
-    <meta name="twitter:image" content="https://skdataplug.com/static/img/logo.png">
+    <meta name="twitter:image" content="https://gigmax.com/static/img/logo.png">
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
@@ -350,11 +350,11 @@
         const isNowLight = body.classList.toggle('light-mode');
         icon.className = isNowLight ? 'fa fa-moon' : 'fa fa-sun';
         label.textContent = isNowLight ? 'Dark' : 'Light';
-        localStorage.setItem('skplug_theme', isNowLight ? 'light' : 'dark');
+        localStorage.setItem('gigmax_theme', isNowLight ? 'light' : 'dark');
     }
 
     (function() {
-        const saved = localStorage.getItem('skplug_theme');
+        const saved = localStorage.getItem('gigmax_theme');
         if (saved === 'light') {
             document.body.classList.add('light-mode');
             const icon = document.getElementById('themeIcon');
@@ -390,13 +390,13 @@
             }
         } else {
             const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
-            localStorage.setItem('skplug_sidebar', isCollapsed ? 'collapsed' : 'open');
+            localStorage.setItem('gigmax_sidebar', isCollapsed ? 'collapsed' : 'open');
         }
     }
 
     (function() {
         if (!isMobile()) {
-            const saved = localStorage.getItem('skplug_sidebar');
+            const saved = localStorage.getItem('gigmax_sidebar');
             if (saved === 'collapsed') {
                 document.body.classList.add('sidebar-collapsed');
             }

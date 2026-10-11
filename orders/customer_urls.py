@@ -1,4 +1,4 @@
-﻿from django.urls import path
+from django.urls import path
 from django.views.generic import TemplateView
 from customer import views
 
@@ -7,6 +7,7 @@ urlpatterns = [
     path('dashboard/', views.home_view, name='customer_dashboard'),
     path('buy/', views.guest_buy, name='guest_buy'),
     path('buy-data/', views.guest_buy, name='buy_data'),
+    path('track/', views.track_order_view, name='track_order'),
     path('buy/link/<str:token>/', views.buy_with_link, name='generated_link_buy'),
 
     path('my-orders/', views.my_orders_view, name='my_orders'),

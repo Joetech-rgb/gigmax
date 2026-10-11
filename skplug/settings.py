@@ -1,10 +1,10 @@
-﻿from pathlib import Path
+from pathlib import Path
 from decouple import config
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-skplug-change-in-production')
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-gigmax-change-in-production')
 
 DEBUG = config('DEBUG', default=False, cast=bool)
 
@@ -69,7 +69,7 @@ APPEND_SLASH = False
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=f"postgresql://{config('DB_USER', default='skplug_user')}:{config('DB_PASSWORD', default='')}@{config('DB_HOST', default='localhost')}:{config('DB_PORT', default='5432')}/{config('DB_NAME', default='skplug_db')}",
+        default=f"postgresql://{config('DB_USER', default='gigmax_user')}:{config('DB_PASSWORD', default='')}@{config('DB_HOST', default='localhost')}:{config('DB_PORT', default='5432')}/{config('DB_NAME', default='gigmax_db')}",
         conn_max_age=600,
         conn_health_checks=True,
     )
@@ -78,7 +78,7 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'skplug-cache',
+        'LOCATION': 'gigmax-cache',
     }
 }
 
@@ -151,7 +151,7 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@skdataplug.com')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@gigmax.com')
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400
@@ -168,8 +168,8 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     CSRF_TRUSTED_ORIGINS += [
-        'https://skdataplug.com',
-        'https://www.skdataplug.com',
+        'https://gigmax.com',
+        'https://www.gigmax.com',
         'https://skplug.onrender.com',
     ]
 
@@ -182,7 +182,7 @@ DCS_API_KEY         = config('DCS_API_KEY', default='')
 DCS_BASE_URL        = config('DCS_BASE_URL', default='https://www.dcselite.com/api/v1')
 DCS_WEBHOOK_SECRET  = config('DCS_WEBHOOK_SECRET', default='')
 AT_USERNAME = config('AT_USERNAME', default='')
-AT_SENDER_ID = config('AT_SENDER_ID', default='SKPlug')
+AT_SENDER_ID = config('AT_SENDER_ID', default='GigMax')
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -190,7 +190,7 @@ LOGGING = {
         'file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': '/var/log/gunicorn/skplug-django-errors.log',
+            'filename': '/var/log/gunicorn/gigmax-django-errors.log',
         },
         'console': {
             'level': 'ERROR',

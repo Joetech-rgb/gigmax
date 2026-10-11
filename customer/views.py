@@ -600,6 +600,22 @@ def order_detail(request, order_id):
     return render(request, 'customer/payment_success.html', {'order': order})
 
 
+def track_order_view(request):
+    from django.contrib import messages
+
+    query = request.GET.get('query', '').strip()
+
+    if not query:
+        messages.error(request, 'Please enter your Order ID or phone number.')
+        return redirect('/buy/')
+
+    order = Order.objects.filter(order_id__iexact=query).first()
+    if order:
+        return redirect(f'/order/{order.order_id}/')
+
+    return redirect(f'/my-orders/?search={query}')
+
+
 def request_refund_view(request, order_id):
     from django.contrib import messages
 

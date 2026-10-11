@@ -265,7 +265,7 @@ def load_wallet_view(request):
         )
 
         reference = f'SKP-{uuid.uuid4().hex[:10].upper()}'
-        email     = f'{request.user.phone_number}@skplug.com'
+        email     = f'{request.user.phone_number}@gigmax.com'
 
         try:
             result = initialize_transaction(
@@ -783,8 +783,8 @@ def paystack_webhook_view(request):
                 User  = get_user_model()
                 email = data.get('customer', {}).get('email', '')
                 user  = None
-                if '@skplug.com' in email:
-                    phone = email.replace('@skplug.com', '')
+                if '@gigmax.com' in email:
+                    phone = email.replace('@gigmax.com', '')
                     user  = User.objects.filter(phone_number=phone).first()
                 if not user:
                     user = User.objects.filter(email=email).first()

@@ -30,7 +30,7 @@ def _send_webhook(url, payload, secret):
                 data    = body,
                 headers = {
                     'Content-Type'       : 'application/json',
-                    'X-SKPlug-Signature' : signature,
+                    'X-GigMax-Signature' : signature,
                 },
                 timeout = 10,
             )

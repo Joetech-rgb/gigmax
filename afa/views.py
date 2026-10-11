@@ -37,9 +37,9 @@ def afa_apply_view(request):
                 ref = f"AFA-{uuid.uuid4().hex[:8].upper()}"
 
                 if request.user.is_authenticated:
-                    email = request.user.email or f'{request.user.phone_number}@skplug.com'
+                    email = request.user.email or f'{request.user.phone_number}@gigmax.com'
                 else:
-                    email = request.POST.get('email', '') or 'guest@skplug.com'
+                    email = request.POST.get('email', '') or 'guest@gigmax.com'
 
                 # ✅ Save application BEFORE redirecting — so we can find it on callback
                 app                    = form.save(commit=False)

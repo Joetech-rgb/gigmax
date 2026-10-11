@@ -617,7 +617,7 @@ def place_single_view(request):
         paystack_amount = float(Decimal(str(price)) * fee_multiplier)
 
         ref    = f'ORD-{uuid.uuid4().hex[:8].upper()}'
-        email  = user.email or f'{user.phone_number}@skplug.com'
+        email  = user.email or f'{user.phone_number}@gigmax.com'
         result = initialize_transaction(
             email        = email,
             amount_ghc   = paystack_amount,
@@ -854,7 +854,7 @@ def submit_bulk_view(request):
         paystack_amount = float(total * fee_multiplier)
 
         ref    = f'ORD-{uuid.uuid4().hex[:8].upper()}'
-        email  = user.email or f'{user.phone_number}@skplug.com'
+        email  = user.email or f'{user.phone_number}@gigmax.com'
         result = initialize_transaction(
             email        = email,
             amount_ghc   = paystack_amount,
