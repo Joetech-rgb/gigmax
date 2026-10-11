@@ -111,7 +111,7 @@ class Order(models.Model):
 
     def _generate_order_id(self):
         suffix = ''.join(random.choices(string.digits, k=8))
-        return f"SKP{suffix}"
+        return f"GMX{suffix}"
 
     def __str__(self):
         return f"{self.order_id} | {self.network} | {self.recipient} | {self.status}"

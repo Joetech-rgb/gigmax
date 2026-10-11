@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from decouple import config
 import dj_database_url
@@ -170,7 +171,6 @@ if not DEBUG:
     CSRF_TRUSTED_ORIGINS += [
         'https://gigmax.com',
         'https://www.gigmax.com',
-        'https://skplug.onrender.com',
     ]
 
 GATI_SYNC_SECRET = config('GATI_SYNC_SECRET', default='')
@@ -190,7 +190,7 @@ LOGGING = {
         'file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': '/var/log/gunicorn/gigmax-django-errors.log',
+            'filename': ('/var/log/gunicorn/gigmax-django-errors.log' if os.name != 'nt' else str(BASE_DIR / 'logs' / 'django-errors.log')),
         },
         'console': {
             'level': 'ERROR',
