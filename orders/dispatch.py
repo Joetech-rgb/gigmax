@@ -50,7 +50,7 @@ def dispatch_mtn_order(recipient, gb_size, order_id):
                 o.kuntanii_unverified_at = timezone.now()
                 o.save()
             print(f'[Kuntanii] {recipient} (order {order_id}) flagged as new/unverified — '
-                  f'set to Waiting. reason={reason}')
+                  f'held as kuntanii_unverified (no auto-refund). reason={reason}')
             # Return None (not a reference) — the Waiting status is already
             # saved above. Callers check `if reference:` to decide whether to
             # mark via_api=True; a Waiting order was never actually dispatched

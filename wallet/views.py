@@ -1008,23 +1008,26 @@ def kuntanii_webhook_view(request):
         'pending':    'processing',
         'processing': 'processing',
         'processed':  'delivered',
-        'cancelled':  'refunded',
     }
     our_status = status_map.get(kt_status)
 
     try:
-        target_status = our_status or 'refunded'
+        target_status = our_status or 'kuntanii_unverified'
         order_obj = Order.objects.filter(order_id=external_order_id).first()
         if order_obj:
             # Load-then-save (not .update()) so the pre_save signal fires and
             # agent wallet/debt crediting happens automatically on refund.
             order_obj.status = target_status
+            if not our_status:
+                from django.utils import timezone as _tz_kt
+                order_obj.kuntanii_unverified_reason = f'Kuntanii status: "{kt_status}"'
+                order_obj.kuntanii_unverified_at = _tz_kt.now()
             order_obj.save()
             if our_status:
                 print(f'[Kuntanii Webhook] {external_order_id} -> {our_status} (event={event}, kt_status={kt_status})')
             else:
                 print(f'[Kuntanii Webhook] UNRECOGNIZED status "{kt_status}" for {external_order_id} '
-                      f'(event={event}) - flagged as refunded for review. Raw: {payload}')
+                      f'(event={event}) - flagged as kuntanii_unverified (no refund). Raw: {payload}')
         else:
             print(f'[Kuntanii Webhook] Order {external_order_id} not found - skipped')
     except Exception as e:

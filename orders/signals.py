@@ -52,6 +52,9 @@ def on_order_created_into_waiting(sender, instance, created, **kwargs):
     Uses a direct .update() (not instance.save()) to avoid re-triggering
     post_save recursively.
     """
+    # Auto-refund disabled: orders born at 'waiting' are NOT credited or
+    # converted to refunded. Refunds happen only when an admin sets REFUNDED.
+    return
     if not created:
         return
     if instance.status != Order.Status.WAITING:
@@ -102,8 +105,13 @@ def on_order_status_change(sender, instance, **kwargs):
     # (including refund_credited=True) before it re-reads `old` — closing
     # that window. This re-fetch happens *inside* the lock, so the second
     # caller sees the already-updated refund_credited flag and skips.
-    if (instance.status in (Order.Status.WAITING, Order.Status.REFUNDED, Order.Status.KUNTANII_UNVERIFIED)
-            and old.status not in (Order.Status.WAITING, Order.Status.REFUNDED, Order.Status.KUNTANII_UNVERIFIED)
+    # NOTE: KUNTANII_UNVERIFIED deliberately does NOT trigger a credit. Orders
+    # parked there are held for manual review. They are credited only when an
+    # admin moves them to REFUNDED (old.status=unverified -> REFUNDED).
+    # Only an explicit move to REFUNDED (admin action) credits the agent.
+    # WAITING and KUNTANII_UNVERIFIED are held with no refund.
+    if (instance.status == Order.Status.REFUNDED
+            and old.status != Order.Status.REFUNDED
             and not old.refund_credited
             and instance.source in ELIGIBLE_REFUND_SOURCES
             and instance.placed_by_id):
@@ -112,7 +120,7 @@ def on_order_status_change(sender, instance, **kwargs):
         try:
             with transaction.atomic():
                 locked_old = Order.objects.select_for_update().get(pk=instance.pk)
-                if locked_old.refund_credited or locked_old.status in (Order.Status.WAITING, Order.Status.REFUNDED, Order.Status.KUNTANII_UNVERIFIED):
+                if locked_old.refund_credited or locked_old.status == Order.Status.REFUNDED:
                     # Another concurrent save already credited this order
                     # while we were waiting for the lock — skip entirely.
                     instance.status           = locked_old.status
@@ -152,7 +160,7 @@ def on_order_status_change(sender, instance, **kwargs):
             except BundlePackage.DoesNotExist:
                 pass
 
-    NOTIFY_STATUSES = {'delivered', 'waiting', 'refunded', 'failed'}
+    NOTIFY_STATUSES = {'delivered', 'waiting', 'refunded', 'failed', 'processing'}
     if old.status != instance.status and instance.status in NOTIFY_STATUSES:
         agent = instance.placed_by
         if not agent:
@@ -163,10 +171,12 @@ def on_order_status_change(sender, instance, **kwargs):
         if not callback_url:
             return
         secret  = agent.api_token or ''
+        shown_status = 'unverified' if instance.status == 'kuntanii_unverified' else instance.status
         payload = {
-            'event'    : f'order.{instance.status}',
+            'event'    : f'order.{shown_status}',
             'order_id' : instance.order_id,
-            'status'   : instance.status,
+            'status'   : shown_status,
+            'message'  : 'Order rejected. Your account has been credited.' if (shown_status == 'refunded' and instance.refund_credited) else None,
             'recipient': instance.recipient,
             'network'  : instance.network,
             'gb_size'  : str(instance.gb_package.gb_size) if instance.gb_package else None,
@@ -174,3 +184,27 @@ def on_order_status_change(sender, instance, **kwargs):
             'timestamp': timezone.now().isoformat(),
         }
         _send_webhook(callback_url, payload, secret)
+
+
+# --- Immediate auto-refund when an order is rejected (number not on Kuntanii list) ---
+from django.db.models.signals import post_save as _ar_post_save
+from django.dispatch import receiver as _ar_receiver
+from django.db import transaction as _ar_tx
+
+
+@_ar_receiver(_ar_post_save, sender=Order)
+def auto_refund_on_unverified(sender, instance, created, **kwargs):
+    if instance.status != 'kuntanii_unverified' or instance.refund_credited:
+        return
+    if instance.kuntanii_reference:
+        return   # order exists at Kuntanii: handled by the 2-hour sweep instead
+    oid = instance.order_id
+
+    def _go():
+        try:
+            from orders.kuntanii_refunds import refund_if_new
+            refund_if_new(oid)
+        except Exception as e:
+            print('[AutoRefund] failed for %s: %s' % (oid, e))
+
+    _ar_tx.on_commit(_go)

@@ -1,46 +1,31 @@
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import timedelta
 
 
 class Command(BaseCommand):
-    help = (
-        'Finds MTN orders sitting in "processing" with a real kuntanii_reference '
-        'for too long, and re-checks their live status directly with Kuntanii. '
-        'Mirrors the inline sweep previously only triggered when an admin loaded '
-        'the main MTN orders admin page — this puts it on its own schedule so '
-        'orders resolve consistently instead of depending on admin activity. '
-        'Any order whose Kuntanii status is unrecognized is now flagged '
-        '"kuntanii_unverified" for manual review, rather than auto-refunded.'
-    )
+    help = ('Re-checks MTN orders that exist at Kuntanii (processing or unverified, not yet '
+            'refunded). Delivered orders are updated, unreadable replies start the refund '
+            'clock. Money is moved only by refund_kuntanii_orders.')
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            '--older-than-minutes', type=int, default=15,
-            help='Only re-check orders that have been stuck in "processing" longer than this.'
-        )
+        parser.add_argument('--older-than-minutes', type=int, default=15)
 
     def handle(self, *args, **options):
         from orders.models import Order
         from orders.kuntanii import check_kuntanii_status
 
         cutoff = timezone.now() - timedelta(minutes=options['older_than_minutes'])
-
-        stuck = Order.objects.filter(
-            network='MTN',
-            status='processing',
-            kuntanii_reference__isnull=False,
-            updated_at__lt=cutoff,
-        ).exclude(kuntanii_reference='')
-
-        count = stuck.count()
-        self.stdout.write(f'Found {count} MTN orders stuck in processing older than {options["older_than_minutes"]} min.')
-
-        for o in stuck:
-            self.stdout.write(f'Checking {o.order_id} (ref: {o.kuntanii_reference})...')
+        qs = (Order.objects.filter(
+                network='MTN', status__in=['processing', 'kuntanii_unverified'],
+                kuntanii_reference__isnull=False, refund_credited=False,
+                updated_at__lt=cutoff)
+              .exclude(kuntanii_reference=''))
+        ids = list(qs.values_list('order_id', flat=True))
+        self.stdout.write('Checking %d orders' % len(ids))
+        for oid in ids:
             try:
-                kt_status = check_kuntanii_status(o.order_id)
-                o.refresh_from_db()
-                self.stdout.write(f'  -> Kuntanii status: {kt_status}, our status now: {o.status}')
+                check_kuntanii_status(oid)
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'  -> FAILED: {e}'))
+                self.stdout.write(self.style.ERROR('%s: %s' % (oid, e)))

@@ -2,6 +2,7 @@ from django.urls import path
 from . import agent_views as views
 
 urlpatterns = [
+    path('dashboard/export-refunded/', views.export_refunded_csv_view, name='agent_export_refunded'),
     path('request-api/',            views.request_api_access,  name='agent_request_api'),
     path('dashboard/',              views.dashboard_view,      name='agent_dashboard'),
     path('dashboard/export-waiting-refund/', views.export_waiting_refund_csv_view, name='agent_export_waiting_refund'),

@@ -74,10 +74,10 @@ def send_to_kuntanii(recipient, gb_size, order_id, verify_result=None):
 
     if not verify_result.get('eligible'):
         reason = verify_result.get('reason') or verify_result.get('message') or 'Not on Kuntanii beneficiary list'
-        print(f'[Kuntanii] {recipient} not eligible ({reason}) — marking order {order_id} as kuntanii_unverified (auto-refund will fire via signal).')
+        print(f'[Kuntanii] {recipient} not eligible ({reason}) — marking order {order_id} as kuntanii_unverified (no auto-refund; held for manual review).')
         from django.utils import timezone
-        # Load-then-save (not .update()) so pre_save fires and the agent's
-        # wallet/debt is auto-credited, same as the waiting-order path.
+        # Load-then-save. kuntanii_unverified is NOT auto-refunded; the order
+        # is held for manual review until an admin converts it to refunded.
         o = Order.objects.filter(order_id=order_id).first()
         if o:
             o.status = 'kuntanii_unverified'
@@ -118,17 +118,59 @@ def send_to_kuntanii(recipient, gb_size, order_id, verify_result=None):
         return None
 
 
-def check_kuntanii_status(order_id):
-    """
-    Checks live status of an order via Kuntanii using our own order_id
-    (used as externalOrderId). Maps their status to ours.
+UNREADABLE_PREFIX = 'status_unreadable'
+UNRECOGNIZED_PREFIX = 'unrecognized_status'
 
-    Safety net: any status value we don't recognize is flagged as
-    'kuntanii_unverified' (not auto-refunded) so it can be reviewed
-    manually, rather than silently ignored or treated as a confirmed
-    refund.
-    """
+
+def _stamp_unreadable(order_id, prefix, detail, move_to_unverified):
+    # Starts the refund clock the first time a given problem is seen.
+    # Never restarts a clock that is already running.
+    from django.utils import timezone
+    from orders.models import Order
+
+    o = Order.objects.filter(order_id=order_id).first()
+    if o is None or o.refund_credited or o.status not in ('processing', 'kuntanii_unverified'):
+        return
+    if (o.kuntanii_unverified_reason or '').startswith(prefix) and o.kuntanii_unverified_at:
+        return
+    reason = ('%s: %s' % (prefix, detail))[:250]
+    if move_to_unverified and o.status != 'kuntanii_unverified':
+        o.status = 'kuntanii_unverified'
+        o.kuntanii_unverified_reason = reason
+        o.kuntanii_unverified_at = timezone.now()
+        o.save()  # only a move to REFUNDED moves money
+    else:
+        Order.objects.filter(pk=o.pk).update(
+            kuntanii_unverified_reason=reason,
+            kuntanii_unverified_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+
+
+def _clear_clock(order_id):
+    from orders.models import Order
+    for prefix in (UNREADABLE_PREFIX, UNRECOGNIZED_PREFIX, 'Unrecognized Kuntanii status'):
+        Order.objects.filter(
+            order_id=order_id, refund_credited=False,
+            kuntanii_unverified_reason__startswith=prefix,
+        ).update(kuntanii_unverified_reason=None, kuntanii_unverified_at=None)
+
+
+def check_kuntanii_status(order_id):
+    # Reads one order's live status from Kuntanii.
+    #   processed / still processing -> our status is updated, any refund clock is cleared
+    #   timeout, API error, odd reply -> nothing is assumed, the refund clock starts
+    #   unrecognised status           -> kuntanii_unverified, the refund clock starts
+    # Refunds themselves are issued only by orders.kuntanii_refunds.
     if not getattr(settings, 'KUNTANII_API_URL', None):
+        return None
+
+    from orders.models import Order
+
+    if not (Order.objects.filter(order_id=order_id, refund_credited=False)
+            .exclude(kuntanii_reference__isnull=True)
+            .exclude(kuntanii_reference='')
+            .exists()):
         return None
 
     try:
@@ -138,41 +180,41 @@ def check_kuntanii_status(order_id):
             timeout=10,
         )
         data = response.json()
+    except Exception as e:
+        print(f'[Kuntanii] Could not read status for {order_id}: {e}')
+        _stamp_unreadable(order_id, UNREADABLE_PREFIX, type(e).__name__, False)
+        return None
 
-        if not data.get('success'):
-            return None
+    if not isinstance(data, dict) or not data.get('success'):
+        print(f'[Kuntanii] Unreadable reply for {order_id}: http {response.status_code}')
+        _stamp_unreadable(order_id, UNREADABLE_PREFIX, 'http %s' % response.status_code, False)
+        return None
 
-        orders_list = data.get('orders', [])
-        kt_status = orders_list[0].get('status') if orders_list else None
+    orders_list = data.get('orders') or []
+    kt_status = orders_list[0].get('status') if orders_list else None
 
-        from orders.models import Order
-        status_map = {
-            'pending':    'processing',
-            'processing': 'processing',
-            'processed':  'delivered',
-        }
-        our_status = status_map.get(kt_status)
-        target_status = our_status or 'kuntanii_unverified'
+    status_map = {
+        'pending':    'processing',
+        'processing': 'processing',
+        'processed':  'delivered',
+    }
+    our_status = status_map.get(kt_status)
 
-        order_obj = Order.objects.filter(order_id=order_id).first()
-        if order_obj:
-            # Load-then-save (not .update()) so the pre_save signal fires and
-            # agent wallet/debt crediting happens automatically on refund.
-            order_obj.status = target_status
-            if not our_status:
-                from django.utils import timezone
-                order_obj.kuntanii_unverified_reason = f'Unrecognized Kuntanii status: "{kt_status}"'
-                order_obj.kuntanii_unverified_at = timezone.now()
-            order_obj.save()
-            if not our_status:
-                print(f'[Kuntanii] UNRECOGNIZED status "{kt_status}" for order {order_id} — '
-                      f'flagged as kuntanii_unverified for review. Raw response: {data}')
-
+    order_obj = Order.objects.filter(order_id=order_id).first()
+    if order_obj is None or order_obj.status == 'refunded':
         return kt_status
 
-    except Exception as e:
-        print(f'[Kuntanii] Error checking status for {order_id}: {e}')
-        return None
+    if our_status:
+        _clear_clock(order_id)
+        order_obj.refresh_from_db()
+        if order_obj.status != our_status:
+            order_obj.status = our_status
+            order_obj.save()
+        return kt_status
+
+    print(f'[Kuntanii] UNRECOGNIZED status "{kt_status}" for order {order_id}. Raw response: {data}')
+    _stamp_unreadable(order_id, UNRECOGNIZED_PREFIX, kt_status, True)
+    return kt_status
 
 
 def report_not_received(order_id, phone_number, data_gb=None, description=''):

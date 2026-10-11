@@ -1573,3 +1573,44 @@ def refund_history_view(request):
         'total_amount' : total_amount,
         'filters'      : request.GET,
     })
+
+
+
+from django.contrib.auth.decorators import login_required as _refund_login_required
+
+
+@_refund_login_required
+def export_refunded_csv_view(request):
+    """Agent's refunded orders as CSV. Optional ?date=YYYY-MM-DD."""
+    import csv
+    from datetime import datetime
+    from django.http import HttpResponse
+    from decimal import Decimal
+    from orders.utils import calculate_owed_amount
+
+    qs = (Order.objects.filter(placed_by=request.user, status='refunded')
+          .select_related('gb_package').order_by('-updated_at'))
+    d = request.GET.get('date')
+    if d:
+        try:
+            from django.db.models import Q as _Q
+            _day = datetime.strptime(d, '%Y-%m-%d').date()
+            qs = qs.filter(_Q(refund_paid_at__date=_day) | _Q(refund_paid_at__isnull=True, updated_at__date=_day))
+        except ValueError:
+            pass
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="refunded_orders.csv"'
+    w = csv.writer(response)
+    w.writerow(['Order Number', 'Recipient', 'Network', 'Status', 'Amount (GHS)', 'Credited To Account', 'Refunded At'])
+    count = 0
+    total = Decimal('0')
+    for o in qs:
+        amount = calculate_owed_amount(o)
+        count += 1
+        total += amount
+        w.writerow([o.order_id, o.recipient, o.network, 'Refunded', f'{amount:.2f}',
+                    'Yes' if o.refund_credited else 'No', (o.refund_paid_at or o.updated_at).strftime('%d %b %Y %H:%M')])
+    w.writerow([])
+    w.writerow(['Refunded Orders', count, '', '', f'{total:.2f}', '', ''])
+    return response

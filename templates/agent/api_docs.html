@@ -58,8 +58,38 @@
         </div>
 
         <div class="card" style="margin-bottom:16px;">
+<<<<<<< ours
             <p class="section-title">GET /api/v1/orders/ – List My Orders</p>
             <p style="color:var(--muted); font-size:0.9rem;">Returns all orders placed via API.</p>
+=======
+            <p class="section-title">GET /api/v1/orders/ â€“ List My Orders</p>
+            <p style="color:var(--muted); font-size:0.9rem;">Returns all orders placed via API. Supports <code>?page=</code>, <code>?page_size=</code> (max 200) and <code>?status=</code>, e.g. <code>?status=unverified</code>.</p>
+            <hr style="border:none; border-top:1px solid var(--surface2); margin:16px 0;">
+            <p class="section-title" style="font-size:0.9rem;">GET /api/v1/refunded/ &ndash; Refunded Orders (per day)</p>
+            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Orders that were rejected and refunded to your account (debt reduced first, then wallet). Defaults to today; use <code>?date=YYYY-MM-DD</code> for another day. Supports <code>?page=</code> and <code>?page_size=</code>. Each row includes <code>refund_credited</code> and <code>refunded_at</code>.</p>
+            <p class="section-title" style="font-size:0.9rem;">GET /api/v1/waiting/ &ndash; Waiting &amp; Unverified Orders</p>
+            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Paginated list of your API orders that are waiting or unverified. Each order has a <code>status</code> of <code>waiting</code> or <code>unverified</code>. Supports <code>?page=</code> and <code>?page_size=</code> (max 200).</p>
+            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Response
+{
+  "total_count": 1,
+  "total_amount": "10.00",
+  "page": 1,
+  "total_pages": 1,
+  "page_size": 50,
+  "has_next": false,
+  "has_previous": false,
+  "orders": [
+    {
+      "order_id": "SKP26106203",
+      "network": "MTN",
+      "recipient": "0550000010",
+      "price_paid": 10.0,
+      "status": "unverified",
+      "created_at": "2026-10-06T21:30:10Z"
+    }
+  ]
+}</pre>
+>>>>>>> theirs
         </div>
 
         <div class="card" style="margin-bottom:16px;">
@@ -87,8 +117,13 @@ Authorization: Bearer YOUR_TOKEN
         </div>
 
         <div class="card" style="margin-bottom:16px;">
+<<<<<<< ours
             <p class="section-title">GET /api/v1/orders-summary/ – Waiting, Refunded &amp; Refund-Requested Orders</p>
             <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns your full waiting/refund picture in one call — orders you placed directly plus orders your customers placed through your generated links. Recommended endpoint for tracking money owed to you.</p>
+=======
+            <p class="section-title">GET /api/v1/orders-summary/ â€“ Waiting, Unverified &amp; Refund-Requested Orders</p>
+            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns your full waiting/refund picture in one call â€” orders you placed directly plus orders your customers placed through your generated links. Recommended endpoint for tracking money owed to you.</p>
+>>>>>>> theirs
             <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Request
 GET /api/v1/orders-summary/
 Authorization: Bearer YOUR_TOKEN
@@ -111,7 +146,9 @@ Authorization: Bearer YOUR_TOKEN
       }
     ]
   },
-  "refunded": {
+  "unverified": {
+    "label": "Unverified contacts",
+    "message": "No refund has been issued for these orders.",
     "count": 0,
     "total": "0",
     "orders": []
@@ -123,7 +160,12 @@ Authorization: Bearer YOUR_TOKEN
   }
 }</pre>
             <p style="color:var(--muted); font-size:0.85rem; margin-top:12px;">
+<<<<<<< ours
                 <code>gb_size</code> is the data bundle size in GB for that order. <code>amount_owed</code> is the amount payable to you — for orders placed through your generated links, this is your cost price, not the retail price your customer paid.
+=======
+                <code>gb_size</code> is the data bundle size in GB for that order. <code>amount_owed</code> is the amount payable to you â€” for orders placed through your generated links, this is your cost price, not the retail price your customer paid.
+                <code>unverified</code> lists unverified contacts (numbers we could not automatically confirm with the delivery network). They are under manual review and no refund is issued automatically.
+>>>>>>> theirs
                 <code>refund_requested</code> lists orders where a refund was requested; each order includes a <code>paid</code> field indicating whether it has been paid out yet.
             </p>
         </div>
@@ -135,17 +177,34 @@ Authorization: Bearer YOUR_TOKEN
 GET /api/v1/status/SKP36648705/
 Authorization: Bearer YOUR_TOKEN
 
-// Response
+// Response (delivered order)
 {
   "order_id": "SKP36648705",
   "status": "delivered"
 }
 
+// Response (unverified contact)
+{
+  "order_id": "SKP26106203",
+  "status": "unverified",
+  "display_status": "unverified",
+  "message": "Unverified contact. No refund has been issued."
+}
+
 // Possible status values:
+<<<<<<< ours
 // pending    – Order received, awaiting processing
 // processing – Sent to network, delivery in progress
 // delivered  – Data delivered successfully
 // failed     – Delivery failed</pre>
+=======
+// pending             â€“ Order received, awaiting processing
+// processing          â€“ Sent to network, delivery in progress
+// delivered           â€“ Data delivered successfully
+// failed              â€“ Delivery failed
+// waiting             â€“ Could not be delivered; held for review (no automatic refund)
+// unverified           â€“ Unverified contact; under manual review, no automatic refund</pre>
+>>>>>>> theirs
         </div>
 
         <!-- -- WEBHOOK / CALLBACK ------------------------------------ -->
@@ -153,7 +212,7 @@ Authorization: Bearer YOUR_TOKEN
             <p class="section-title">?? Delivery Notifications (Webhook)</p>
             <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">
                 Instead of polling for order status, register a URL on your server. We will automatically
-                send a <strong>POST</strong> request to that URL whenever an admin marks your order as delivered.
+                send a <strong>POST</strong> request to that URL when an order changes status. Events: <code>order.delivered</code>, <code>order.failed</code>, <code>order.waiting</code> and <code>order.unverified</code>. Orders that fail or cannot be verified are not refunded automatically; <code>order.refunded</code> is only sent if an admin manually refunds an order.
             </p>
 
             <p class="section-title" style="font-size:0.9rem;">GET /api/v1/callback/ – Get Registered Callback URL</p>
@@ -183,6 +242,20 @@ Authorization: Bearer YOUR_TOKEN
                 ?? Every notification we send includes an <code>X-GigMax-Signature</code> header.
                 Verify this on your server to confirm the request is genuinely from us.
             </p>
+
+            <p class="section-title" style="font-size:0.9rem; margin-top:16px;">Example payload (unverified contact)</p>
+            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">{
+  "event": "order.unverified",
+  "order_id": "SKP26106203",
+  "status": "unverified",
+  "message": "Unverified contact. No refund has been issued.",
+  "recipient": "0550000010",
+  "network": "MTN",
+  "gb_size": "1.00",
+  "price": "10.00",
+  "timestamp": "2026-10-06T21:30:10Z"
+}</pre>
+            <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;"><code>message</code> is <code>null</code> for other events.</p>
         </div>
 
         <!-- -- TROUBLESHOOTING --------------------------------------- -->

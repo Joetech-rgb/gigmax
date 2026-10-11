@@ -124,7 +124,7 @@ def create_order_api(request):
         return Response({
             'error'   : 'Duplicate order detected. An identical order was placed within the last 10 minutes.',
             'order_id': recent_duplicate.order_id,
-            'status'  : recent_duplicate.status,
+            'status'  : ('unverified' if recent_duplicate.status == 'kuntanii_unverified' else recent_duplicate.status),
             'tip'     : 'If you intended a new order, wait 10 minutes or use a different package.',
         }, status=409)
     # ─────────────────────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ def create_order_api(request):
     )
     return Response({
         'order_id' : order.order_id,
-        'status'   : order.status,
+        'status'   : ('unverified' if order.status == 'kuntanii_unverified' else order.status),
         'network'  : order.network,
         'recipient': order.recipient,
         'gb_size'  : str(package.gb_size),
@@ -169,6 +169,8 @@ def list_orders_api(request):
     status_filter = request.GET.get('status', '').strip()
 
     qs = Order.objects.filter(placed_by=user, source='api')
+    if status_filter in ('unverified', 'kuntanii_unverified'):
+        status_filter = 'kuntanii_unverified'
     if status_filter:
         qs = qs.filter(status=status_filter)
 
@@ -176,7 +178,7 @@ def list_orders_api(request):
         'order_id', 'network', 'recipient', 'status', 'price_paid', 'created_at'
     )[offset:offset + page_size]
 
-    results = list(orders)
+    results = [dict(r, status=('unverified' if r['status'] == 'kuntanii_unverified' else r['status'])) for r in orders]
     return Response({
         'count'    : len(results),
         'page'     : page,
@@ -218,11 +220,13 @@ def order_status_api(request, order_id):
         return Response({'error': 'Unauthorized'}, status=401)
     try:
         order = Order.objects.get(order_id=order_id, placed_by=user)
-        display_status = 'waiting' if order.status == 'kuntanii_unverified' else order.status
+        shown = 'unverified' if order.status == 'kuntanii_unverified' else order.status
+        display_status = shown
         return Response({
             'order_id': order.order_id,
-            'status': order.status,
+            'status': shown,
             'display_status': display_status,
+            'refund_credited': bool(order.refund_credited), 'message': ('Refunded. Your account has been credited.' if (order.status == 'refunded' and order.refund_credited) else ('Unverified contact. No refund has been issued.' if order.status == 'kuntanii_unverified' else None)),
         })
     except Order.DoesNotExist:
         return Response({'error': 'Order not found.'}, status=404)
@@ -246,7 +250,7 @@ def waiting_orders_api(request):
     )
 
     ordered_qs = qs.order_by('-created_at').values(
-        'order_id', 'network', 'recipient', 'price_paid', 'created_at'
+        'order_id', 'network', 'recipient', 'price_paid', 'status', 'created_at'
     )
 
     # Pagination: defaults to page 1, 50 per page. Callers pass
@@ -271,7 +275,8 @@ def waiting_orders_api(request):
         'page_size'    : page_size,
         'has_next'     : page_obj.has_next(),
         'has_previous' : page_obj.has_previous(),
-        'orders'       : list(page_obj.object_list),
+        'orders'       : [dict(r, status=('unverified' if r.get('status') == 'kuntanii_unverified' else r.get('status')))
+                          for r in page_obj.object_list],
     })
 
 
@@ -305,7 +310,7 @@ def orders_summary_api(request):
                 'gb_size'    : str(o.gb_package.gb_size) if o.gb_package else None,
                 'price_paid' : str(o.price_paid or 0),
                 'amount_owed': str(amount),
-                'status'     : o.status,
+                'status'     : 'unverified' if o.status == 'kuntanii_unverified' else o.status,
                 'created_at' : o.created_at,
             }
             if paid_field:
@@ -313,12 +318,12 @@ def orders_summary_api(request):
             rows.append(row)
         return rows, total
 
-    waiting_qs = all_orders.filter(status__in=['waiting', 'kuntanii_unverified'])
-    refunded_qs = all_orders.filter(status='refunded')
+    waiting_qs = all_orders.filter(status='waiting')
+    unverified_qs = all_orders.filter(status='kuntanii_unverified')
     refund_requested_qs = all_orders.filter(refund_requested=True)
 
     waiting_orders, waiting_total = serialize(waiting_qs)
-    refunded_orders, refunded_total = serialize(refunded_qs)
+    unverified_orders, unverified_total = serialize(unverified_qs)
     refund_requested_orders, refund_requested_total = serialize(refund_requested_qs, paid_field=True)
 
     return Response({
@@ -327,10 +332,12 @@ def orders_summary_api(request):
             'total'  : str(waiting_total),
             'orders' : waiting_orders,
         },
-        'refunded': {
-            'count'  : refunded_qs.count(),
-            'total'  : str(refunded_total),
-            'orders' : refunded_orders,
+        'unverified': {
+            'label'  : 'Unverified contacts',
+            'message': 'No refund has been issued for these orders.',
+            'count'  : unverified_qs.count(),
+            'total'  : str(unverified_total),
+            'orders' : unverified_orders,
         },
         'refund_requested': {
             'count'  : refund_requested_qs.count(),
@@ -384,5 +391,60 @@ def register_callback_api(request):
     return Response({
         'message'     : 'Callback URL registered successfully.',
         'callback_url': user.callback_url,
+<<<<<<< ours
         'note'        : 'We will POST to this URL when your orders are delivered. Verify using X-GigMax-Signature header.',
     })
+=======
+        'note'        : 'We will POST to this URL when your orders are delivered. Verify using X-SKPlug-Signature header.',
+    })
+
+
+@csrf_exempt
+@api_view(['GET'])
+def refunded_orders_api(request):
+    """Refunded orders for one day (default today). ?date=YYYY-MM-DD&page=N&page_size=N"""
+    user = get_user_by_token(request)
+    if not user:
+        return Response({'error': 'Unauthorized'}, status=401)
+
+    from datetime import datetime
+    from django.utils import timezone
+    from django.db.models import Sum, Count
+    from django.core.paginator import Paginator
+
+    d = request.GET.get('date')
+    try:
+        day = datetime.strptime(d, '%Y-%m-%d').date() if d else timezone.now().date()
+    except ValueError:
+        return Response({'error': 'date must be YYYY-MM-DD'}, status=400)
+
+    from django.db.models import Q as _Q
+    qs = Order.objects.filter(placed_by=user, status='refunded').filter(_Q(refund_paid_at__date=day) | _Q(refund_paid_at__isnull=True, updated_at__date=day))
+    summary = qs.aggregate(total_count=Count('id'), total_amount=Sum('price_paid'))
+    try:
+        page_size = min(int(request.GET.get('page_size', 50)), 200)
+    except (TypeError, ValueError):
+        page_size = 50
+    try:
+        page_no = int(request.GET.get('page', 1))
+    except (TypeError, ValueError):
+        page_no = 1
+    page = Paginator(qs.order_by('-updated_at'), page_size).get_page(page_no)
+
+    return Response({
+        'date': str(day),
+        'total_count': summary['total_count'] or 0,
+        'total_amount': str(summary['total_amount'] or 0),
+        'page': page.number,
+        'total_pages': page.paginator.num_pages,
+        'page_size': page_size,
+        'has_next': page.has_next(),
+        'has_previous': page.has_previous(),
+        'orders': [{
+            'order_id': o.order_id, 'network': o.network, 'recipient': o.recipient,
+            'price_paid': str(o.price_paid), 'status': 'refunded',
+            'refund_credited': bool(o.refund_credited),
+            'refunded_at': (o.refund_paid_at or o.updated_at).isoformat(),
+        } for o in page],
+    })
+>>>>>>> theirs

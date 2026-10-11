@@ -2978,8 +2978,11 @@ def mark_customer_refund_paid_view(request, order_id):
     # link profit has been clawed back (that remains a separate, optional
     # admin action and does not block this transition).
     if order.status == 'waiting':
+        # Save the customer fields first, then change status with .update() so the
+        # pre_save signal does NOT credit the agent as a side effect.
+        order.save(update_fields=['customer_refund_paid', 'customer_refund_paid_at'])
+        Order.objects.filter(pk=order.pk).update(status='refunded')
         order.status = 'refunded'
-        order.save(update_fields=['customer_refund_paid', 'customer_refund_paid_at', 'status'])
     else:
         order.save(update_fields=['customer_refund_paid', 'customer_refund_paid_at'])
 

@@ -2,6 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('refunded/', views.refunded_orders_api, name='api_refunded_orders'),
+    path('refunded', views.refunded_orders_api, name='api_refunded_orders_noslash'),
     path('order/',                  views.create_order_api,      name='api_create_order'),
     path('orders/',                 views.list_orders_api,       name='api_list_orders'),
     path('bundles/',                views.list_bundles_api,      name='api_list_bundles'),
