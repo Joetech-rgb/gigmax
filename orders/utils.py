@@ -275,6 +275,9 @@ def _apply_refund_credit(user, amount, order_id, order_source=''):
 
     with transaction.atomic():
         locked_user   = User.objects.select_for_update().get(pk=user.pk)
+        from wallet.models import WalletTransaction as _WT
+        if _WT.objects.filter(reference=f'AUTOREFUND-{order_id}').exists():
+            return locked_user.wallet_balance, locked_user.debt_balance
         amount        = Decimal(str(amount))
         debt_before   = Decimal(str(locked_user.debt_balance or 0))
         wallet_before = Decimal(str(locked_user.wallet_balance or 0))

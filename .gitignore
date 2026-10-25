@@ -48,3 +48,7 @@ hell
 .env.save
 .env.bak_*
 wallet_backup_*.sql
+logs/
+*.bak*
+_audit/
+gigmax_audit.zip

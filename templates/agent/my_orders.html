@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}My Orders - SK Plug{% endblock %}
+{% block title %}My Orders - GigMax{% endblock %}
 {% block body %}
 
 {% include 'partials/sidebar.html' %}
@@ -27,6 +27,13 @@
         </div>
     </form>
 
+    {% if status_filter == 'refunded' %}
+    <div class="card" style="margin-bottom:20px;">
+        <a class="btn btn-outline btn-sm" href="/agent/dashboard/export-refunded/?search={{ search|urlencode }}&date_from={{ date_from }}&date_to={{ date_to }}">
+            <i class="fa fa-download"></i> Export refunded orders (CSV)
+        </a>
+    </div>
+    {% endif %}
     {% if status_summary %}
     <div class="card" style="margin-bottom:20px; display:flex; gap:24px; flex-wrap:wrap; align-items:center;">
         <strong>Summary:</strong>

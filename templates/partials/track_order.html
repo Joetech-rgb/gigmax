@@ -1,0 +1,14 @@
+{# Track-your-order form for pages that extend base.html #}
+<div style="max-width:520px; margin:20px auto 0; padding:0 20px;">
+    <form method="get" action="{% url 'track_order' %}" class="card">
+        <p style="font-weight:700; margin-bottom:8px;">Track your order</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <input type="text" name="query" required autocomplete="off" class="form-control"
+                   placeholder="Phone number or Order ID" style="flex:1; min-width:180px;">
+            <button type="submit" class="btn btn-primary">Track</button>
+        </div>
+        <p style="margin-top:8px; font-size:0.8rem; color:var(--muted);">
+            Enter the number you bought data for, or your Order ID, to see the current status.
+        </p>
+    </form>
+</div>

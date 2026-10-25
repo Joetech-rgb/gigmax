@@ -4,20 +4,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{% block title %}SK Plug{% endblock %}</title>
+    <title>{% block title %}GigMax{% endblock %}</title>
     <!-- Open Graph -->
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="SK Plug">
-    <meta property="og:title" content="SK Plug - Fast and Reliable Data Bundles">
+    <meta property="og:site_name" content="GigMax">
+    <meta property="og:title" content="GigMax - Fast and Reliable Data Bundles">
     <meta property="og:description" content="Buy MTN, Telecel and AT data bundles instantly. Fast delivery, best prices.">
-    <meta property="og:image" content="https://gigmax.com/static/img/logo.png">
+    <meta property="og:image" content="https://gigmaxdatahub.com/static/img/logo.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:url" content="https://gigmax.com">
+    <meta property="og:url" content="https://gigmaxdatahub.com">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="SK Plug - Fast and Reliable Data Bundles">
+    <meta name="twitter:title" content="GigMax - Fast and Reliable Data Bundles">
     <meta name="twitter:description" content="Buy MTN, Telecel and AT data bundles instantly.">
-    <meta name="twitter:image" content="https://gigmax.com/static/img/logo.png">
+    <meta name="twitter:image" content="https://gigmaxdatahub.com/static/img/logo.png">
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
@@ -29,17 +29,17 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
-            --primary: #00C853;
-            --primary-dark: #009624;
-            --dark: #0A0A0F;
-            --surface: #13131A;
-            --surface2: #1C1C26;
-            --border: #2A2A38;
-            --text: #F0F0F5;
-            --muted: #8888A0;
+            --primary: #1DB23B;
+            --primary-dark: #148A2D;
+            --dark: #FFFFFF;
+            --surface: #FFFFFF;
+            --surface2: #F4F6FA;
+            --border: transparent;
+            --text: #1B2A4A;
+            --muted: #5F6C86;
             --danger: #FF4444;
             --warning: #FFB300;
-            --info: #00C853;
+            --info: #0A8EF5;
             --radius: 12px;
             --transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
             --sidebar-width: 240px;
@@ -293,7 +293,41 @@
             }
         }
     </style>
-    {% block extra_css %}{% endblock %}
+    <style>
+/* GigMax light neumorphic theme */
+html:not([data-gm-theme="night"]) body.body-offset {
+  --dark:#FFFFFF; --surface:#FFFFFF; --surface2:#F4F6FA; --border:transparent;
+  --text:#1B2A4A; --muted:#5F6C86; --primary:#1DB23B; --primary-dark:#148A2D;
+  --navy:#0A2F7B; --sky:#0A8EF5;
+  --nm-raised:8px 8px 16px #C5CCD8, -8px -8px 16px #FFFFFF;
+  --nm-small:4px 4px 8px #C5CCD8, -4px -4px 8px #FFFFFF;
+  --nm-pressed:inset 4px 4px 8px #C5CCD8, inset -4px -4px 8px #FFFFFF;
+}
+body.body-offset { background:#FFFFFF; }
+h1,h2,h3,h4,h5 { color:var(--navy); }
+.card, .stat-card, .modal-box, .promo-banner { border:none; box-shadow:var(--nm-raised); }
+.stat-card { box-shadow:var(--nm-small); }
+.topbar { border-bottom:none; box-shadow:0 4px 12px #C5CCD8; }
+.sidebar { border-right:none; box-shadow:4px 0 12px #C5CCD8; }
+.form-control { border:none; box-shadow:var(--nm-pressed); }
+.form-control:focus { box-shadow:var(--nm-pressed), 0 0 0 2px rgba(10,142,245,0.35); }
+.btn { box-shadow:var(--nm-small); }
+.btn:hover { box-shadow:var(--nm-pressed); }
+.btn-primary { background:linear-gradient(135deg,#25C846,#169A31); color:#fff; }
+.btn-primary:hover { background:linear-gradient(135deg,#169A31,#25C846); }
+.btn-outline { background:#FFFFFF; border:none; color:var(--navy); }
+.btn-outline:hover { color:var(--primary); }
+.badge-info { background:rgba(10,142,245,0.15); color:#0A8EF5; }
+
+.topbar { height:76px !important; } .body-offset { padding-top:76px !important; } .sidebar { top:76px !important; } .topbar-brand img { height:60px; width:auto; display:block; }
+a { color:var(--sky); }
+.table-wrap, table { background:transparent; }
+th { color:var(--navy); }
+tr:hover td { background:#F4F6FA; }
+.modal-overlay { background:rgba(10,47,123,0.35); }
+</style>
+{% block extra_css %}{% endblock %}
+{% include 'partials/neumorphism.html' %}
 </head>
 <body class="body-offset">
 
@@ -305,9 +339,7 @@
                 <i class="fa fa-bars"></i>
             </button>
             {% endif %}
-            <a href="/" class="topbar-brand">
-                SK Plug
-            </a>
+            <a href="/" class="topbar-brand"><img src="{% static 'img/logo.png' %}" alt="GigMax"></a>
         </div>
         <div class="topbar-right">
             <!-- THEME TOGGLE -->

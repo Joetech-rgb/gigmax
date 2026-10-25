@@ -161,6 +161,23 @@ def _credit_link_profit(reference):
         print(f'[_credit_link_profit] error for {reference}: {e}')
 
         
+def _expected_base_price(package_id, link_token=''):
+    """Price the customer must pay (before any fee), taken from the database."""
+    from bundles.models import BundlePackage
+    from orders.models import GeneratedLink, GeneratedLinkPrice
+    pkg = BundlePackage.objects.filter(id=package_id, is_active=True).first()
+    if pkg is None:
+        return None
+    price = Decimal(str(pkg.customer_price))
+    if link_token:
+        link = GeneratedLink.objects.filter(token=link_token, is_active=True).first()
+        if link:
+            lp = GeneratedLinkPrice.objects.filter(link=link, bundle=pkg).first()
+            if lp:
+                price = Decimal(str(lp.retail_price))
+    return price
+
+
 def _create_order_from_metadata(data, reference):
     try:
         from orders.models import Order as _Order
@@ -186,7 +203,15 @@ def _create_order_from_metadata(data, reference):
                       f'phone={phone} pkg={package_id} price={price}')
                 return
 
-            order = guest_order(phone, package_id, price=float(price))
+            expected = _expected_base_price(package_id, link_token)
+            try:
+                paid = Decimal(str(data.get('amount', 0))) / 100
+            except ArithmeticError:
+                paid = Decimal('0')
+            if expected is None or paid < expected:
+                print(f'[WEBHOOK] REFUSED {reference}: paid {paid}, database price {expected}. No order created.')
+                return
+            order = guest_order(phone, package_id, price=float(expected))
             _Order.objects.filter(id=order.id).update(payment_reference=reference)
 
             if link_token:
@@ -242,12 +267,11 @@ def load_wallet_view(request):
     we charge GHS 20.40 → verify_view deducts 2% (GHS 0.40) → net GHS 20.00.
     """
     if request.method == 'POST':
-        amount = request.POST.get('amount')
         try:
-            amount = float(amount)
-            if amount <= 0:
+            amount_decimal = Decimal(str(request.POST.get('amount', '')).strip()).quantize(Decimal('0.01'))
+            if not amount_decimal.is_finite() or amount_decimal <= 0 or amount_decimal > Decimal('100000'):
                 raise ValueError
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, ArithmeticError):
             messages.error(request, 'Enter a valid amount.')
             return redirect('/agent/wallet/')
 
@@ -259,9 +283,12 @@ def load_wallet_view(request):
         except Exception:
             fee_percent = Decimal('2.00')
 
-        amount_decimal = Decimal(str(amount))
-        gross_amount   = float(
-            (amount_decimal * (1 + fee_percent / 100)).quantize(Decimal('0.01'))
+        from decimal import ROUND_UP as _ROUND_UP
+        if fee_percent < 0 or fee_percent >= 100:
+            fee_percent = Decimal('2.00')
+        # Agents pay no top-up fee: charge exactly what they typed.
+        gross_amount = float(
+            amount_decimal
         )
 
         reference = f'SKP-{uuid.uuid4().hex[:10].upper()}'
@@ -316,6 +343,20 @@ def paystack_verify_view(request):
         pending_bulk   = request.session.get('pending_bulk',   None)
         pending_single = request.session.get('pending_single', None)
 
+        def _bound(p):
+            # A pending order only counts for the reference it was started with,
+            # and only if the amount paid covers the quoted amount.
+            if not p or p.get('reference') != reference:
+                return None
+            try:
+                if amount_ghc + Decimal('0.05') < Decimal(str(p.get('amount', '0'))):
+                    return None
+            except Exception:
+                return None
+            return p
+        pending_bulk   = _bound(pending_bulk)
+        pending_single = _bound(pending_single)
+
         from orders.models import Order
         has_order        = Order.objects.filter(payment_reference=reference).exists()
         has_pending      = bool(pending_bulk or pending_single)
@@ -323,6 +364,12 @@ def paystack_verify_view(request):
 
         # ── PURE WALLET TOP-UP ────────────────────────────────────────────
         if not is_order_payment:
+            cust_email = ((result.get('data') or {}).get('customer') or {}).get('email', '')
+            if (not reference.startswith('SKP-')
+                    or cust_email.lower() != f'{user.phone_number}@gigmax.com'.lower()):
+                print(f'[verify_view] ownership mismatch for {reference}')
+                messages.error(request, 'This payment does not belong to your account.')
+                return redirect('/agent/wallet/')
             try:
                 from admin_panel.models import FeeConfiguration
                 fee_config  = FeeConfiguration.get_current()
@@ -330,7 +377,8 @@ def paystack_verify_view(request):
             except Exception:
                 fee_percent = Decimal('2.00')
 
-            fee        = (amount_ghc * fee_percent / 100).quantize(Decimal('0.01'))
+            fee        = Decimal('0.00')   # agents pay no top-up fee
+            fee_percent = Decimal('0')
             net_amount = amount_ghc - fee
 
             with transaction.atomic():
@@ -408,8 +456,7 @@ def paystack_verify_view(request):
 
             messages.success(
                 request,
-                f'GHS {net_amount:.2f} added to your wallet. '
-                f'(GHS {fee:.2f} service charge deducted from GHS {amount_ghc:.2f})'
+                f'GHS {net_amount:.2f} added to your wallet.'
             )
             return redirect('/agent/wallet/')
 
@@ -753,6 +800,8 @@ def approve_withdrawal_view(request, withdrawal_id):
 # ---------------------------------------------------------------------------
 @csrf_exempt
 def paystack_webhook_view(request):
+    if not settings.PAYSTACK_SECRET_KEY:
+        return HttpResponse(status=503)   # never accept webhooks without a configured key
     signature = request.headers.get('x-paystack-signature', '')
     computed  = hmac.new(
         settings.PAYSTACK_SECRET_KEY.encode(),
@@ -760,7 +809,7 @@ def paystack_webhook_view(request):
         hashlib.sha512,
     ).hexdigest()
 
-    if signature != computed:
+    if not hmac.compare_digest(signature.encode(), computed.encode()):
         return HttpResponse(status=400)
 
     payload   = json.loads(request.body)
@@ -797,7 +846,8 @@ def paystack_webhook_view(request):
                     except Exception:
                         fee_percent = Decimal('2.00')
 
-                    fee        = (amount_ghc * fee_percent / 100).quantize(Decimal('0.01'))
+                    fee        = Decimal('0.00')   # agents pay no top-up fee
+                    fee_percent = Decimal('0')
                     net_amount = amount_ghc - fee
 
                     wallet_obj, _ = Wallet.objects.get_or_create(user=user)
@@ -880,26 +930,27 @@ def paystack_webhook_view(request):
 
     elif event in ('transfer.failed', 'transfer.reversed'):
         try:
-            withdrawal = WithdrawalRequest.objects.get(reference=reference)
-            if withdrawal.status != 'failed':
-                from django.contrib.auth import get_user_model
-                User   = get_user_model()
-                agent  = withdrawal.wallet.user
-                refund = withdrawal.amount + SERVICE_CHARGE
-                is_link_profit_withdrawal = withdrawal.reference.startswith('WLP-')
+            with transaction.atomic():
+                withdrawal = WithdrawalRequest.objects.select_for_update().get(reference=reference)
+                if withdrawal.status != 'failed':
+                    from django.contrib.auth import get_user_model
+                    User   = get_user_model()
+                    agent  = withdrawal.wallet.user
+                    refund = withdrawal.amount + SERVICE_CHARGE
+                    is_link_profit_withdrawal = withdrawal.reference.startswith('WLP-')
 
-                if is_link_profit_withdrawal:
-                    User.objects.filter(pk=agent.pk).update(
-                        link_profit_balance = F('link_profit_balance') + refund,
-                    )
-                else:
-                    User.objects.filter(pk=agent.pk).update(
-                        wallet_balance = F('wallet_balance') + refund,
-                    )
+                    if is_link_profit_withdrawal:
+                        User.objects.filter(pk=agent.pk).update(
+                            link_profit_balance = F('link_profit_balance') + refund,
+                        )
+                    else:
+                        User.objects.filter(pk=agent.pk).update(
+                            wallet_balance = F('wallet_balance') + refund,
+                        )
 
-                withdrawal.status = 'failed'
-                withdrawal.save()
-                WalletTransaction.objects.filter(reference=withdrawal.reference).update(status='failed')
+                    withdrawal.status = 'failed'
+                    withdrawal.save()
+                    WalletTransaction.objects.filter(reference=withdrawal.reference).update(status='failed')
         except WithdrawalRequest.DoesNotExist:
             pass
 
@@ -963,7 +1014,6 @@ def kuntanii_webhook_view(request):
     import hashlib as _hashlib
     from orders.models import Order
 
-    print(f'[Kuntanii Webhook DEBUG] All headers received: {dict(request.headers)}')
     signature = request.headers.get('X-Kuntanii-Signature', '')
     secret    = getattr(settings, 'KUNTANII_WEBHOOK_SECRET', '')
     sig_valid = None
@@ -986,6 +1036,9 @@ def kuntanii_webhook_view(request):
         print(f'[Kuntanii Webhook] *** SECURITY WARNING *** No signature header present '
               f'on incoming webhook despite secret being configured. Processing anyway '
               f'pending format confirmation.')
+
+    if getattr(settings, 'KUNTANII_ENFORCE_SIGNATURE', False) and sig_valid is not True:
+        return HttpResponse(status=401)
 
     try:
         payload = _json.loads(request.body)

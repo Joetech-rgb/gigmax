@@ -744,13 +744,14 @@ def api_usage_view(request):
     other_users = [u for u in api_users if 'gati' not in u.full_name.lower()]
     api_users_sorted = gati_users + other_users
 
-    from .models import KuntaniiSettings, ATSettings, PaymentGatewaySettings
+    from .models import KuntaniiSettings, ATSettings, PaymentGatewaySettings, AutoRefundSettings
     return render(request, 'admin_panel/api_usage.html', {
         'api_users':    api_users_sorted,
         'gati_enabled': GatiSettings.get().is_enabled,
         'kuntanii_enabled': KuntaniiSettings.get().is_enabled,
         'at_enabled': ATSettings.get().is_enabled,
         'payment_gateway_settings': PaymentGatewaySettings.get(),
+        'auto_refund_enabled': AutoRefundSettings.get().is_enabled,
     })
 
 
@@ -1135,10 +1136,36 @@ def fee_settings_view(request):
     from .models import FeeConfiguration
     config = FeeConfiguration.get_current()
     if request.method == 'POST':
-        config.paystack_fee_percent      = float(request.POST.get('paystack_fee', 1.5))
-        config.admin_share_percent       = float(request.POST.get('admin_share', 50))
-        config.agent_share_percent       = float(request.POST.get('agent_share', 50))
-        config.operational_cost_percent  = float(request.POST.get('operational_cost', 0))
+        from decimal import Decimal as _D
+        try:
+            _new = {
+                'paystack_fee_percent'    : _D(str(request.POST.get('paystack_fee', '1.5')).strip()),
+                'admin_share_percent'     : _D(str(request.POST.get('admin_share', '50')).strip()),
+                'agent_share_percent'     : _D(str(request.POST.get('agent_share', '50')).strip()),
+                'operational_cost_percent': _D(str(request.POST.get('operational_cost', '0')).strip()),
+            }
+        except ArithmeticError:
+            messages.error(request, 'All fee values must be numbers.')
+            return redirect('/admin-panel/fee-settings/')
+        _bad = [k for k, v in _new.items() if not v.is_finite() or v < 0 or v > 100]
+        if _bad or _new['paystack_fee_percent'] >= 20:
+            messages.error(request, 'Fee values must be between 0 and 100, and the Paystack fee must be under 20%.')
+            return redirect('/admin-panel/fee-settings/')
+        if _new['admin_share_percent'] + _new['agent_share_percent'] != 100:
+            messages.error(request, 'Admin share and agent share must add up to 100.')
+            return redirect('/admin-panel/fee-settings/')
+        try:
+            from .models import SettingChangeLog
+            for _k, _v in _new.items():
+                _old = getattr(config, _k)
+                if _D(str(_old)) != _v:
+                    SettingChangeLog.objects.create(setting=_k, old_value=str(_old),
+                                                    new_value=str(_v), changed_by=request.user)
+        except Exception as _e:
+            print('[fee settings] could not write change log: %s' % _e)
+        for _k, _v in _new.items():
+            setattr(config, _k, _v)
+        config.updated_by = request.user
         config.save()
         messages.success(request, 'Fee settings updated successfully!')
         return redirect('/admin-panel/fee-settings/')
@@ -1440,6 +1467,11 @@ def excel_export_view(request):
 
     network = request.GET.get('network', 'MTN')
     date    = request.GET.get('date', str(timezone.now().date()))
+    import datetime as _dt
+    try:
+        _dt.datetime.strptime(date, '%Y-%m-%d')
+    except ValueError:
+        return HttpResponse('Invalid date, use YYYY-MM-DD', status=400)
 
     orders = Order.objects.filter(
         network=network,
@@ -1466,6 +1498,9 @@ def excel_export_view(request):
                        'API' if o.via_api else 'Manual'
 
         ws.append([i, o.recipient, gb_value, network, o.status, source_label])
+        _c = ws.cell(row=ws.max_row, column=2)
+        if isinstance(_c.value, str) and _c.value.startswith('='):
+            _c.data_type = 's'
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -3025,6 +3060,12 @@ def toggle_payment_gateway_view(request):
         messages.error(request, 'Invalid gateway selected.')
         return redirect('/admin-panel/api-usage/')
 
+    if new_gateway == 'moolre':
+        from wallet import moolre as _moolre
+        if not getattr(_moolre, 'CONFIGURED', False):
+            messages.error(request, 'Moolre is not configured yet, so it cannot be activated. Paystack stays active.')
+            return redirect('/admin-panel/api-usage/')
+
     settings_obj = PaymentGatewaySettings.get()
     old_gateway = settings_obj.active_gateway
     settings_obj.active_gateway = new_gateway
@@ -3032,8 +3073,47 @@ def toggle_payment_gateway_view(request):
     settings_obj.save()
 
     if old_gateway != new_gateway:
+        try:
+            from .models import SettingChangeLog
+            SettingChangeLog.objects.create(
+                setting='active_gateway', old_value=old_gateway,
+                new_value=new_gateway, changed_by=request.user)
+        except Exception as _e:
+            print('[gateway switch] could not write change log: %s' % _e)
+        try:
+            from .models import SettingChangeLog
+            SettingChangeLog.objects.create(
+                setting='active_gateway', old_value=old_gateway,
+                new_value=new_gateway, changed_by=request.user)
+        except Exception as _e:
+            print('[gateway switch] could not write change log: %s' % _e)
         messages.success(request, f'Payment gateway switched from {valid_choices[old_gateway]} to {valid_choices[new_gateway]}. New transactions will use {valid_choices[new_gateway]}.')
     else:
         messages.info(request, f'Payment gateway is already set to {valid_choices[new_gateway]}.')
 
+    return redirect('/admin-panel/api-usage/')
+
+
+@admin_required
+def toggle_auto_refund_view(request):
+    from .models import AutoRefundSettings, SettingChangeLog
+
+    if request.method != 'POST':
+        return redirect('/admin-panel/api-usage/')
+
+    s = AutoRefundSettings.get()
+    old = s.is_enabled
+    s.is_enabled = not old
+    s.updated_by = request.user
+    s.save()
+    SettingChangeLog.objects.create(
+        setting='auto_refund',
+        old_value='ON' if old else 'OFF',
+        new_value='ON' if s.is_enabled else 'OFF',
+        changed_by=request.user,
+    )
+    if s.is_enabled:
+        messages.success(request, 'Auto Refund is ON. Run the refund sweep to credit orders held while it was off.')
+    else:
+        messages.success(request, 'Auto Refund is OFF. Rejected orders now stay in the review queue until an admin refunds them.')
     return redirect('/admin-panel/api-usage/')

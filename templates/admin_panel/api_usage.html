@@ -80,6 +80,34 @@
             </div>
         </div>
 
+        <!-- Auto Refund Toggle -->
+        <div class="card" style="margin-bottom:24px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <p style="font-weight:700; font-size:1rem; margin-bottom:6px;">
+                        Auto Refund
+                        <span class="badge {% if auto_refund_enabled %}badge-success{% else %}badge-danger{% endif %}" style="margin-left:8px;">
+                            {% if auto_refund_enabled %}ON{% else %}OFF{% endif %}
+                        </span>
+                    </p>
+                    <p style="font-size:0.85rem; color:var(--muted);">
+                        {% if auto_refund_enabled %}
+                        Orders rejected for an unverified number are refunded to the agent automatically.
+                        {% else %}
+                        Auto Refund is off. Rejected orders stay in the Kuntanii Unverified review queue until an admin refunds them.
+                        {% endif %}
+                    </p>
+                </div>
+                <form method="post" action="/admin-panel/toggle-auto-refund/" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm {% if auto_refund_enabled %}btn-danger{% else %}btn-primary{% endif %}"
+                            onclick="return confirm('{% if auto_refund_enabled %}Turn OFF Auto Refund?{% else %}Turn ON Auto Refund?{% endif %}')">
+                        {% if auto_refund_enabled %}Turn Off Auto Refund{% else %}Turn On Auto Refund{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+
         <!-- Kuntanii Toggle -->
         <div class="card" style="margin-bottom:24px; border-color:{% if kuntanii_enabled %}rgba(0,200,83,0.35){% else %}rgba(255,68,68,0.35){% endif %};">
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">

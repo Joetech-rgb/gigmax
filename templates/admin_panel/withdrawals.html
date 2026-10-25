@@ -159,7 +159,7 @@ function copyText(text) {
     navigator.clipboard.writeText(text).then(() => {
         const toast = document.createElement('div');
         toast.textContent = 'Copied: ' + text;
-        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:0.85rem;z-index:9999;';
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface2);color:var(--text);padding:10px 20px;border-radius:8px;font-size:0.85rem;z-index:9999;';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 2000);
     });

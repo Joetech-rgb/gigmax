@@ -20,6 +20,15 @@ CLOCK_REASONS = ('status_unreadable', 'unrecognized_status', 'Unrecognized Kunta
 AUTOREFUND_FROM = datetime.fromisoformat('2026-10-10T08:11:27').replace(tzinfo=dt_tz.utc)
 
 
+def auto_refund_enabled():
+    # Admin switch (Auto Refund). Fails open so a missing table never stops refunds.
+    try:
+        from admin_panel.models import AutoRefundSettings
+        return bool(AutoRefundSettings.get().is_enabled)
+    except Exception:
+        return True
+
+
 def _eligible_sources():
     from orders.signals import ELIGIBLE_REFUND_SOURCES
     return {getattr(s, 'value', s) for s in ELIGIBLE_REFUND_SOURCES}
@@ -71,6 +80,8 @@ def refund_kuntanii_order(order_id, reason=None):
 
 def refund_if_new(order_id, reason=None):
     """Immediate-refund entry point. Ignores orders older than AUTOREFUND_FROM."""
+    if not auto_refund_enabled():
+        return 'held'
     o = Order.objects.filter(order_id=order_id).only('created_at').first()
     if o is None or o.created_at < AUTOREFUND_FROM:
         return 'skipped'
@@ -98,6 +109,10 @@ def refundable_orders(now=None, include_old=False):
 
 def run_sweep(apply=False, agent_phone=None, limit=None, out=print, include_old=False):
     from orders.utils import calculate_owed_amount
+
+    if apply and not auto_refund_enabled():
+        out('Auto Refund is OFF in the admin panel. Nothing was credited.')
+        return None
 
     qs = refundable_orders(include_old=include_old).select_related('placed_by')
     if agent_phone:

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from decouple import config
 import dj_database_url
@@ -7,6 +8,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-gigmax-change-in-production')
 
 DEBUG = config('DEBUG', default=False, cast=bool)
+
+if not DEBUG and SECRET_KEY.startswith('django-insecure'):
+    raise RuntimeError('Set SECRET_KEY in .env before running with DEBUG=False')
 
 _allowed = config('ALLOWED_HOSTS', default='*')
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',')]
@@ -42,10 +46,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'skplug.middleware.SiteClosedMiddleware',
+    'gigmax.middleware.SiteClosedMiddleware',
 ]
 
-ROOT_URLCONF = 'skplug.urls'
+ROOT_URLCONF = 'gigmax.urls'
 
 TEMPLATES = [
     {
@@ -63,9 +67,14 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'skplug.wsgi.application'
+WSGI_APPLICATION = 'gigmax.wsgi.application'
 
 APPEND_SLASH = False
+
+import os as _os
+_db_url = config('DATABASE_URL', default='')
+if _db_url:
+    _os.environ['DATABASE_URL'] = _db_url
 
 DATABASES = {
     'default': dj_database_url.config(
@@ -103,7 +112,10 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -151,7 +163,7 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@gigmax.com')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@gigmaxdatahub.com')
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400
@@ -168,9 +180,8 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     CSRF_TRUSTED_ORIGINS += [
-        'https://gigmax.com',
-        'https://www.gigmax.com',
-        'https://skplug.onrender.com',
+        'https://gigmaxdatahub.com',
+        'https://www.gigmaxdatahub.com',
     ]
 
 GATI_SYNC_SECRET = config('GATI_SYNC_SECRET', default='')
@@ -190,7 +201,7 @@ LOGGING = {
         'file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': '/var/log/gunicorn/gigmax-django-errors.log',
+            'filename': ('/var/log/gunicorn/gigmax-django-errors.log' if os.name != 'nt' else str(BASE_DIR / 'logs' / 'django-errors.log')),
         },
         'console': {
             'level': 'ERROR',
@@ -206,4 +217,13 @@ LOGGING = {
     },
 }
 
-RATELIMIT_IP_META_KEY = 'HTTP_X_FORWARDED_FOR'
+RATELIMIT_IP_META_KEY = 'gigmax.ratelimit_ip.client_ip'
+RATELIMIT_USE_CACHE = 'ratelimit'
+CACHES['ratelimit'] = {
+    'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+    'LOCATION': 'ratelimit_cache',
+}
+KUNTANII_ENFORCE_SIGNATURE = config('KUNTANII_ENFORCE_SIGNATURE', default=False, cast=bool)
+API_GROUP_INVITE_URL = config('API_GROUP_INVITE_URL', default='')
+API_SUPPORT_PHONE = config('API_SUPPORT_PHONE', default='')
+API_SUPPORT_WHATSAPP = config('API_SUPPORT_WHATSAPP', default='')

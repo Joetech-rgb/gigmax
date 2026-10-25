@@ -626,6 +626,8 @@ def place_single_view(request):
         )
         if result and result.get('status'):
             request.session['pending_single'] = {
+                'reference' : ref,
+                'amount'    : f'{paystack_amount:.2f}',
                 'package_id': package_id,
                 'recipient' : recipient,
             }
@@ -863,6 +865,8 @@ def submit_bulk_view(request):
         )
         if result and result.get('status'):
             request.session['pending_bulk'] = {
+                'reference'  : ref,
+                'amount'     : f'{paystack_amount:.2f}',
                 'network'    : network,
                 'recipients' : recipients,
                 'package_ids': package_ids,
@@ -921,7 +925,22 @@ def upload_excel_view(request):
     network    = request.POST.get('network')
     excel_file = request.FILES['excel_file']
 
-    wb = openpyxl.load_workbook(excel_file)
+    if not excel_file.name.lower().endswith('.xlsx') or excel_file.size > 2 * 1024 * 1024:
+        messages.error(request, 'Please upload a .xlsx file smaller than 2 MB.')
+        return render(request, 'agent/buy_excel.html', {
+            'networks'   : networks,
+            'validated'  : False,
+            'mtn_enabled': SiteSettings.get().mtn_enabled,
+        })
+    try:
+        wb = openpyxl.load_workbook(excel_file, data_only=True)
+    except Exception:
+        messages.error(request, 'Could not read that file. Please upload a valid .xlsx file.')
+        return render(request, 'agent/buy_excel.html', {
+            'networks'   : networks,
+            'validated'  : False,
+            'mtn_enabled': SiteSettings.get().mtn_enabled,
+        })
     ws = wb.active
 
     valid   = []
@@ -1365,9 +1384,18 @@ def delete_link_view(request, pk):
 
 @agent_required
 def api_docs_view(request):
+    from django.conf import settings as _s
+    token = getattr(request.user, 'api_token', '') or ''
+    phone = getattr(_s, 'API_SUPPORT_PHONE', '') or ''
+    wa    = getattr(_s, 'API_SUPPORT_WHATSAPP', '') or ''
     return render(request, 'agent/api_docs.html', {
-        'has_api': getattr(request.user, 'has_api_access', False),
-        'token'  : getattr(request.user, 'api_token', ''),
+        'has_api'         : getattr(request.user, 'has_api_access', False),
+        'token_tail'      : token[-4:],
+        'group_url'       : getattr(_s, 'API_GROUP_INVITE_URL', '') or '',
+        'support_phone'   : phone,
+        'support_tel'     : ''.join(c for c in phone if c.isdigit() or c == '+'),
+        'support_whatsapp': wa,
+        'support_wa_digits': ''.join(c for c in wa if c.isdigit()),
     })
 
 
@@ -1380,6 +1408,22 @@ def verify_password_for_token_view(request):
     if request.user.check_password(password):
         return JsonResponse({'ok': True, 'token': request.user.api_token})
     return JsonResponse({'ok': False, 'error': 'Incorrect password'}, status=403)
+
+
+@agent_required
+def rotate_api_token_view(request):
+    import secrets
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Invalid request'}, status=400)
+    if not getattr(request.user, 'has_api_access', False):
+        return JsonResponse({'ok': False, 'error': 'You do not have API access.'}, status=403)
+    if not request.user.check_password(request.POST.get('password', '')):
+        return JsonResponse({'ok': False, 'error': 'Incorrect password'}, status=403)
+    new_token = secrets.token_hex(32)
+    request.user.api_token = new_token
+    request.user.save(update_fields=['api_token'])
+    print('[API] token rotated for user %s' % request.user.pk)
+    return JsonResponse({'ok': True, 'token': new_token})
 
 
 @agent_required
@@ -1590,6 +1634,16 @@ def export_refunded_csv_view(request):
 
     qs = (Order.objects.filter(placed_by=request.user, status='refunded')
           .select_related('gb_package').order_by('-updated_at'))
+    _search = request.GET.get('search', '').strip()
+    if _search:
+        qs = qs.filter(Q(recipient__icontains=_search) | Q(order_id__icontains=_search))
+    for _k, _lookup in (('date_from', 'created_at__date__gte'), ('date_to', 'created_at__date__lte')):
+        _v = request.GET.get(_k, '')
+        if _v:
+            try:
+                qs = qs.filter(**{_lookup: _v})
+            except Exception:
+                pass
     d = request.GET.get('date')
     if d:
         try:

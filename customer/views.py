@@ -18,7 +18,7 @@ from django.db import connection
 def _redirect_if_logged_in(request):
     if request.user.is_authenticated and hasattr(request.user, 'role'):
         if request.user.role == 'admin':
-            return redirect('/admin-panel/')
+            return redirect('/admin-panel/dashboard/')
         elif request.user.role in ['small_agent', 'moderate', 'mega', 'extreme', 'super_mega']:
             return redirect('/agent/dashboard/')
     return None
@@ -99,6 +99,7 @@ def initiate_payment(request, package_id):
     reference = f"PAY_{uuid.uuid4().hex[:12].upper()}"
 
     request.session[f'pay_intent_{reference}'] = {
+        'charged'    : str(price_with_fee),
         'phone'      : phone,
         'package_id' : str(package_id),
         'price'      : str(price),
@@ -112,6 +113,7 @@ def initiate_payment(request, package_id):
             email=email,
             amount_ghc=price_with_fee,
             reference=reference,
+            metadata=request.session.get(f'pay_intent_{reference}'),
             callback_url=request.build_absolute_uri('/payment/verify/'),
         )
         if result.get('status'):
@@ -247,6 +249,33 @@ def verify_payment(request):
                 price      = intent['price']
                 link_token = intent.get('link_token', '')
 
+                try:
+                    from decimal import Decimal as _D
+                    _charged = intent.get('charged')
+                    if _charged and _D(str(data.get('amount', 0))) / 100 < _D(str(_charged)):
+                        print(f'[verify_payment] UNDERPAID ref={reference} paid={data.get("amount")} expected={_charged}')
+                        return render(request, 'customer/payment_failed.html', {
+                            'reference': reference,
+                            'error': 'The amount paid does not match this order. Contact support with your payment reference.',
+                        })
+                except ArithmeticError:
+                    pass
+
+                from decimal import Decimal as _D2
+                from wallet.views import _expected_base_price as _ebp
+                _exp = _ebp(package_id, link_token)
+                try:
+                    _paid = _D2(str(data.get('amount', 0))) / 100
+                except ArithmeticError:
+                    _paid = _D2('0')
+                if _exp is None or _paid < _exp:
+                    print(f'[verify_payment] REFUSED ref={reference}: paid {_paid}, database price {_exp}')
+                    return render(request, 'customer/payment_failed.html', {
+                        'reference': reference,
+                        'error': 'The amount paid does not match this order. Contact support with your payment reference.',
+                    })
+                price = str(_exp)
+
                 from django.db import transaction
                 with transaction.atomic():
                     existing_now = Order.objects.filter(
@@ -269,19 +298,22 @@ def verify_payment(request):
                     ).exclude(payment_reference=reference).first()
 
                     if existing_active:
-                        print(f'[verify_payment] Voiding payment {reference} — '
-                              f'{phone} already has active order {existing_active.order_id}')
-                        return render(request, 'customer/payment_failed.html', {
-                            'reference': reference,
-                            'error': (
-                                f'You already have an active order ({existing_active.order_id}) '
-                                f'for this bundle currently {existing_active.status}. '
-                                f'Your payment will be refunded if it was charged.'
-                            )
-                        })
+                        print('[verify_payment] %s already has active order %s - paid reference %s still gets its own order' % (phone, existing_active.order_id, reference))
 
-                    order = guest_order(phone, package_id, price=price)
-                    Order.objects.filter(id=order.id).update(payment_reference=reference)
+                    from django.db import IntegrityError as _IE
+                    try:
+                        with transaction.atomic():
+                            order = guest_order(phone, package_id, price=price)
+                            Order.objects.filter(id=order.id).update(payment_reference=reference)
+                    except _IE:
+                        _won = Order.objects.filter(payment_reference=reference).first()
+                        if _won is None:
+                            raise
+                        request.session.pop(f'pay_intent_{reference}', None)
+                        if _won.payment_status == 'paid':
+                            return render(request, 'customer/payment_success.html', {'order': _won})
+                        _won = pay_and_deliver(_won.order_id)
+                        return render(request, 'customer/payment_success.html', {'order': _won})
 
                 # ── FIX: attach generated_link BEFORE pay_and_deliver ──────
                 # Previously this was done AFTER pay_and_deliver, which meant
@@ -476,6 +508,7 @@ def buy_with_link(request, token):
 
                 # Store intent in session — original price, NOT price_with_fee
                 request.session[f'pay_intent_{reference}'] = {
+                    'charged'    : str(price_with_fee),
                     'phone'      : phone,
                     'package_id' : str(package_id),
                     'price'      : str(price),
@@ -489,6 +522,7 @@ def buy_with_link(request, token):
                         email=email,
                         amount_ghc=price_with_fee,
                         reference=reference,
+                        metadata=request.session.get(f'pay_intent_{reference}'),
                         callback_url=request.build_absolute_uri('/payment/verify/'),
                     )
                     if result.get('status'):
@@ -537,30 +571,74 @@ def pay_with_wallet(request, package_id):
         fee            = (price * fee_percent / 100).quantize(Decimal('0.01'))
         price_with_fee = price + fee
 
-        if float(request.user.wallet_balance) < float(price_with_fee):
+        if not phone:
+            messages.error(request, 'Enter the recipient phone number.')
+            return redirect(f'/checkout/{package_id}/')
+
+        import uuid as _uuid
+        from django.db import transaction as _tx
+        from django.contrib.auth import get_user_model as _gum
+        from wallet.models import Wallet as _WM, WalletTransaction as _WT
+        _U = _gum()
+        _ref = f'CWALLET-{_uuid.uuid4().hex[:10].upper()}'
+
+        _short = False
+        try:
+            with _tx.atomic():
+                _u = _U.objects.select_for_update().get(pk=request.user.pk)
+                _bal = Decimal(str(_u.wallet_balance or 0))
+                if _bal < price_with_fee:
+                    _short = True
+                else:
+                    _u.wallet_balance = _bal - price_with_fee
+                    _u.save(update_fields=['wallet_balance'])
+                    _w, _ = _WM.objects.get_or_create(user=_u)
+                    _WT.objects.create(
+                        wallet=_w, amount=price_with_fee, transaction_type='debit',
+                        status='completed', reference=_ref,
+                        description=f'Customer wallet payment (incl. {fee_percent}% fee)',
+                        wallet_before=_bal, wallet_after=_bal - price_with_fee,
+                    )
+        except Exception as e:
+            print(f'[wallet pay] debit failed for user {request.user.pk}: {e}')
+            messages.error(request, 'Payment could not be processed. You have not been charged.')
+            return redirect(f'/checkout/{package_id}/?phone={phone}')
+        if _short:
             messages.error(request, 'Insufficient wallet balance.')
             return redirect(f'/checkout/{package_id}/?phone={phone}')
 
-        request.user.wallet_balance = float(request.user.wallet_balance) - float(price_with_fee)
-        request.user.save(update_fields=['wallet_balance'])
+        def _reverse():
+            with _tx.atomic():
+                _r = _U.objects.select_for_update().get(pk=request.user.pk)
+                _b = Decimal(str(_r.wallet_balance or 0))
+                _r.wallet_balance = _b + price_with_fee
+                _r.save(update_fields=['wallet_balance'])
+                _w2, _ = _WM.objects.get_or_create(user=_r)
+                _WT.objects.create(
+                    wallet=_w2, amount=price_with_fee, transaction_type='credit',
+                    status='completed', reference='REV-' + _ref,
+                    description=f'Reversal: order could not be created ({_ref})',
+                    wallet_before=_b, wallet_after=_b + price_with_fee,
+                )
 
         try:
-            import uuid as _uuid
-            from wallet.models import Wallet as _WM, WalletTransaction as _WT
-            _wallet, _ = _WM.objects.get_or_create(user=request.user)
-            _WT.objects.create(
-                wallet           = _wallet,
-                amount           = price_with_fee,
-                transaction_type = 'debit',
-                status           = 'completed',
-                description      = f'Customer wallet payment (incl. {fee_percent}% fee)',
-                reference        = f'CWALLET-{_uuid.uuid4().hex[:10].upper()}',
-            )
-        except Exception:
-            pass
+            order = guest_order(phone, package_id)
+        except Exception as e:
+            print(f'[wallet pay] order creation failed after debit {_ref}: {e}')
+            try:
+                _reverse()
+                messages.error(request, 'We could not create your order, so your wallet was refunded.')
+            except Exception as e2:
+                print(f'[wallet pay] REVERSAL FAILED for {_ref}, user {request.user.pk}: {e2}')
+                messages.error(request, f'Something went wrong. Contact support with reference {_ref}.')
+            return redirect(f'/checkout/{package_id}/?phone={phone}')
 
-        order = guest_order(phone, package_id)
-        order = pay_and_deliver(order.order_id)
+        try:
+            order = pay_and_deliver(order.order_id)
+        except Exception as e:
+            print(f'[wallet pay] delivery step failed for {order.order_id} ({_ref}): {e}')
+            messages.error(request, f'Your payment was taken but delivery did not finish. Contact support with order {order.order_id}.')
+            return redirect('/')
         return render(request, 'customer/payment_success.html', {'order': order})
 
     return redirect('/')
@@ -569,23 +647,51 @@ def pay_with_wallet(request, package_id):
 # Order detail
 # ---------------------------------------------------------------------------
 
+_STATUS_DISPLAY = {
+    'pending_payment': ('Awaiting payment', 'badge-muted', "We haven't received payment for this order yet."),
+    'pending': ('Pending', 'badge-info', 'Your order has been received and is waiting to be sent.'),
+    'processing': ('Processing', 'badge-warning', 'Your order is being delivered.'),
+    'delivered': ('Delivered', 'badge-success', 'The data has been delivered to this number.'),
+    'waiting': ('Waiting', 'badge-warning', "We couldn't deliver this order yet. You can request a refund below."),
+    'kuntanii_unverified': ('Waiting', 'badge-warning', "We couldn't deliver this order yet. You can request a refund below."),
+    'refunded': ('Refunded', 'badge-muted', 'This order has been refunded.'),
+    'failed': ('Failed', 'badge-danger', 'Delivery failed for this order.'),
+}
+
+
+def _with_status_display(orders):
+    rows = list(orders)
+    for o in rows:
+        shown = _STATUS_DISPLAY.get(o.status)
+        if shown is None:
+            getter = getattr(o, 'get_status_display', None)
+            shown = (getter() if getter else str(o.status), 'badge-muted', '')
+        o.status_label, o.status_class, o.status_note = shown
+    return rows
+
+
 def my_orders_view(request):
     from orders.models import Order
     search    = request.GET.get('search', '').strip()
+    order_ref = request.GET.get('order', '').strip()
     date_from = request.GET.get('date_from', '').strip()
     date_to   = request.GET.get('date_to', '').strip()
 
     orders = Order.objects.none()
-    if search:
-        orders = Order.objects.filter(recipient__iexact=search).order_by('-created_at')
+    if order_ref:
+        orders = Order.objects.filter(order_id=order_ref.upper()).order_by('-created_at')
+    elif search:
+        orders = Order.objects.filter(recipient=search).order_by('-created_at')
         if date_from:
             orders = orders.filter(created_at__date__gte=date_from)
         if date_to:
             orders = orders.filter(created_at__date__lte=date_to)
 
     return render(request, 'customer/my_orders.html', {
-        'orders':    orders,
+        'orders':    _with_status_display(orders),
         'search':    search,
+        'order_ref': order_ref,
+        'searched':  bool(search or order_ref),
         'date_from': date_from,
         'date_to':   date_to,
     })
@@ -601,19 +707,29 @@ def order_detail(request, order_id):
 
 
 def track_order_view(request):
+    from urllib.parse import urlencode
     from django.contrib import messages
 
     query = request.GET.get('query', '').strip()
-
     if not query:
-        messages.error(request, 'Please enter your Order ID or phone number.')
+        messages.error(request, 'Please enter your phone number or Order ID.')
         return redirect('/buy/')
 
-    order = Order.objects.filter(order_id__iexact=query).first()
+    # Exact Order ID first.
+    order = Order.objects.filter(order_id=query.upper()).first()
     if order:
-        return redirect(f'/order/{order.order_id}/')
+        return redirect('/my-orders/?' + urlencode({'order': order.order_id}))
 
-    return redirect(f'/my-orders/?search={query}')
+    # Otherwise treat it as a phone number. Accept +233 / 233 / spaces.
+    search = query
+    if all(ch.isdigit() or ch in ' +-()' for ch in query):
+        digits = ''.join(ch for ch in query if ch.isdigit())
+        if digits.startswith('233') and len(digits) == 12:
+            digits = '0' + digits[3:]
+        elif len(digits) == 9:
+            digits = '0' + digits
+        search = digits
+    return redirect('/my-orders/?' + urlencode({'search': search}))
 
 
 def request_refund_view(request, order_id):

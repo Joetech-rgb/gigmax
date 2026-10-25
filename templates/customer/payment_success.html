@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Payment Successful - SK Plug{% endblock %}
+{% block title %}Payment Successful - GigMax{% endblock %}
 
 {% block body %}
 <div style="max-width: 500px; margin: 80px auto; text-align: center;">
-    <div class="card" style="padding: 40px; background: #13131A; border: 1px solid #2A2A38;">
+    <div class="card" style="padding: 40px; background: var(--surface2); border: 1px solid var(--border);">
         <div style="font-size: 64px; color: #00C853;">?</div>
         <h2 style="color: #00C853; margin: 20px 0;">Payment Successful!</h2>
         <p style="color: #F0F0F5;">Your bundle has been delivered to <strong>{{ order.recipient }}</strong></p>
         
-        <div style="background: #1C1C26; padding: 20px; border-radius: 12px; margin: 25px 0; text-align: left;">
+        <div style="background: var(--surface2); padding: 20px; border-radius: 12px; margin: 25px 0; text-align: left;">
             <p style="color: #F0F0F5; margin: 10px 0;"><strong>Order ID:</strong> {{ order.order_id }}</p>
             <p style="color: #F0F0F5; margin: 10px 0;"><strong>Bundle:</strong> {{ order.gb_package.gb_size|floatformat:0 }}GB</p>
             <p style="color: #F0F0F5; margin: 10px 0;"><strong>Amount Paid:</strong> GHS {{ order.price_paid }}</p>

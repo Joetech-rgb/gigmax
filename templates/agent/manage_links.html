@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n dict_extras %}
-{% block title %}Generated Links - SK Plug{% endblock %}
+{% block title %}Generated Links - GigMax{% endblock %}
 {% block body %}
 <div style="display:flex;">
     {% include 'partials/sidebar.html' %}
@@ -68,7 +68,7 @@
                 </div>
                 {% endfor %}
 
-                <div id="priceError" style="display:none; background:#fdecea; color:#922b21; border:1px solid #f5b7b1; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:0.87rem;"></div>
+                <div id="priceError" style="display:none; background:var(--surface); color:var(--text); border:1px solid #f5b7b1; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:0.87rem;"></div>
                 <button type="submit" class="btn btn-primary btn-full" style="margin-top:8px;">Create Link</button>
             </form>
         </div>
@@ -115,7 +115,7 @@
                 </div>
                 {% endfor %}
 
-                <div id="priceError" style="display:none; background:#fdecea; color:#922b21; border:1px solid #f5b7b1; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:0.87rem;"></div>
+                <div id="priceError" style="display:none; background:var(--surface); color:var(--text); border:1px solid #f5b7b1; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:0.87rem;"></div>
                 <button type="submit" class="btn btn-primary btn-full" style="margin-top:8px;">Save Changes</button>
             </form>
         </div>

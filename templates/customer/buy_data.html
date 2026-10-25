@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Buy Data - SK Plug{% endblock %}
+{% block title %}Buy Data - GigMax{% endblock %}
 
 {% block body %}
 <div style="max-width: 800px; margin: 40px auto; padding: 20px;">
@@ -38,7 +38,7 @@
                 {% for package in packages %}
                 <option value="{{ package.id }}"
                         data-network="{{ package.network }}"
-                        {% if package.is_promo %}style="background:#fff3e0; color:#ff6b6b; font-weight:bold;"{% endif %}>
+                        {% if package.is_promo %}style="background:var(--surface); color:#ff6b6b; font-weight:bold;"{% endif %}>
                     {{ package.gb_size|floatformat:0 }}GB - GHS{{ package.customer_price }}
                     {% if package.is_promo %} [PROMO] {% endif %}
                 </option>

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Admin Dashboard – SK Plug{% endblock %}
+{% block title %}Admin Dashboard – GigMax{% endblock %}
 {% block body %}
 <div style="display:flex;">
     {% include 'partials/sidebar.html' %}
@@ -579,12 +579,12 @@ function openSiteToggleModal(action) {
 
     if (action === 'close') {
         title.textContent    = '⚠️ Close the Site?';
-        desc.textContent     = 'This will block all agents and customers from accessing SK Plug. Enter your password to confirm.';
+        desc.textContent     = 'This will block all agents and customers from accessing GigMax. Enter your password to confirm.';
         btn.style.background = '#e53935';
         btn.textContent      = 'Yes, Close Site';
     } else {
         title.textContent    = '✅ Open the Site?';
-        desc.textContent     = 'This will allow everyone to access SK Plug again. Enter your password to confirm.';
+        desc.textContent     = 'This will allow everyone to access GigMax again. Enter your password to confirm.';
         btn.style.background = '#00c853';
         btn.textContent      = 'Yes, Open Site';
     }

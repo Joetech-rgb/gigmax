@@ -72,4 +72,5 @@ urlpatterns = [
     path('toggle-mtn/', views.toggle_mtn_view, name='toggle_mtn'),
     path('agents-waiting-refund/<uuid:pk>/history/', views.agent_refund_history_view, name='agent_refund_history'),
     path('toggle-payment-gateway/', views.toggle_payment_gateway_view, name='toggle_payment_gateway'),
+    path('toggle-auto-refund/', views.toggle_auto_refund_view, name='toggle_auto_refund'),
 ]

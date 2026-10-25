@@ -19,7 +19,7 @@ def _send(to_email, subject, message):
         send_mail(
             subject=subject,
             message=message,
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gigmax.com'),
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@gigmaxdatahub.com'),
             recipient_list=[to_email],
             fail_silently=False,
         )
@@ -179,7 +179,7 @@ Congratulations! Your request to become an agent on SK Plug has been approved.
 
 You can now log in and start placing orders.
 
-Login here: https://gigmax.com/accounts/login/
+Login here: https://gigmaxdatahub.com/accounts/login/
 
 Welcome to the SK Plug team!
 """

@@ -96,6 +96,13 @@ class Order(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['payment_reference'],
+                condition=~models.Q(payment_reference='') & models.Q(payment_reference__isnull=False),
+                name='uniq_order_payment_reference',
+            ),
+        ]
         indexes = [
             models.Index(fields=['network', 'created_at']),
             models.Index(fields=['status', 'network']),
@@ -111,7 +118,7 @@ class Order(models.Model):
 
     def _generate_order_id(self):
         suffix = ''.join(random.choices(string.digits, k=8))
-        return f"SKP{suffix}"
+        return f"GMX{suffix}"
 
     def __str__(self):
         return f"{self.order_id} | {self.network} | {self.recipient} | {self.status}"

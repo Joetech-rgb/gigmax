@@ -27,6 +27,7 @@ urlpatterns = [
     path('links/<int:pk>/delete/',  views.delete_link_view,    name='agent_delete_link'),
     path('api-docs/',               views.api_docs_view,       name='agent_api_docs'),
     path('api-docs/verify-password/', views.verify_password_for_token_view, name='agent_verify_token_password'),
+    path('api-docs/rotate-token/', views.rotate_api_token_view, name='agent_rotate_token'),
     path('api-request/',            views.api_request_view,    name='agent_api_request'),
     path('afa/',                    views.afa_view,            name='agent_afa'),
     path('debt/',                   views.debt_view,           name='agent_debt'),

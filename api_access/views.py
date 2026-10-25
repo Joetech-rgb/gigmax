@@ -131,21 +131,42 @@ def create_order_api(request):
 
     price = package.get_price_for_user(user)
 
+    from django.db import transaction as _tx
+    from decimal import Decimal as _D
     try:
         from orders.utils import _apply_payment
-        _apply_payment(user, price)
+        with _tx.atomic():
+            # Row lock: concurrent orders from this agent queue up here, and
+            # each one reads the balance left by the previous one.
+            _locked = User.objects.select_for_update().get(pk=user.pk)
+            _wallet_used, _debt_added = _apply_payment(_locked, price)
     except ValueError:
         return Response({'error': 'Insufficient wallet balance.'}, status=402)
 
-    order = place_order(
-        package   = package,
-        recipient = recipient,
-        price     = price,
-        source    = Order.Source.API,
-        placed_by = user,
-        mark_paid = True,
-        via_api   = True,
-    )
+    _started = timezone.now()
+    try:
+        order = place_order(
+            package   = package,
+            recipient = recipient,
+            price     = price,
+            source    = Order.Source.API,
+            placed_by = user,
+            mark_paid = True,
+            via_api   = True,
+        )
+    except Exception as _e:
+        print('[API order] place_order failed after charge: %s' % _e)
+        order = Order.objects.filter(
+            placed_by=user, recipient=recipient, gb_package=package,
+            created_at__gte=_started,
+        ).first()
+        if order is None:
+            with _tx.atomic():
+                _u = User.objects.select_for_update().get(pk=user.pk)
+                _u.wallet_balance = _D(str(_u.wallet_balance or 0)) + _wallet_used
+                _u.debt_balance   = max(_D('0'), _D(str(_u.debt_balance or 0)) - _debt_added)
+                _u.save(update_fields=['wallet_balance', 'debt_balance'])
+            return Response({'error': 'Order could not be placed. You have not been charged.'}, status=500)
     return Response({
         'order_id' : order.order_id,
         'status'   : ('unverified' if order.status == 'kuntanii_unverified' else order.status),
@@ -163,8 +184,14 @@ def list_orders_api(request):
     if not user:
         return Response({'error': 'Unauthorized'}, status=401)
 
-    page          = int(request.GET.get('page', 1))
-    page_size     = min(int(request.GET.get('page_size', 50)), 200)
+    try:
+        page = max(int(request.GET.get('page', 1)), 1)
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        page_size = min(max(int(request.GET.get('page_size', 50)), 1), 200)
+    except (TypeError, ValueError):
+        page_size = 50
     offset        = (page - 1) * page_size
     status_filter = request.GET.get('status', '').strip()
 

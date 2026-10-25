@@ -17,16 +17,21 @@ A's webhook even after the toggle switches to gateway B mid-flight.
 
 def get_active_gateway():
     from admin_panel.models import PaymentGatewaySettings
-    return PaymentGatewaySettings.get().active_gateway
+    gateway = PaymentGatewaySettings.get().active_gateway
+    if gateway == 'moolre':
+        from wallet import moolre
+        if not getattr(moolre, 'CONFIGURED', False):
+            return 'paystack'
+    return gateway
 
 
-def initialize_transaction(email, amount_ghc, reference, callback_url):
+def initialize_transaction(email, amount_ghc, reference, callback_url, metadata=None):
     gateway = get_active_gateway()
     if gateway == 'moolre':
         from wallet import moolre
-        return moolre.initialize_transaction(email, amount_ghc, reference, callback_url)
+        return moolre.initialize_transaction(email, amount_ghc, reference, callback_url, metadata)
     from wallet import paystack
-    return paystack.initialize_transaction(email, amount_ghc, reference, callback_url)
+    return paystack.initialize_transaction(email, amount_ghc, reference, callback_url, metadata)
 
 
 def verify_transaction(reference):

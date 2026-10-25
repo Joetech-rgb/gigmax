@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}My Orders — SK Plug{% endblock %}
+{% block title %}My Orders — GigMax{% endblock %}
 {% block body %}
 <div style="max-width:900px; margin:0 auto; padding:32px 24px;">
-    <h1 class="page-title">My Orders</h1>
+    <h1 class="page-title">Track Your Order</h1>
+    <p style="color:var(--muted); margin:-4px 0 16px;">Search by the number you bought data for to see each order's ID and current status.</p>
 
     <form method="get" class="card" style="margin-bottom:20px;">
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
@@ -30,13 +31,8 @@
                     <td>{{ o.recipient }}</td>
                     <td>{{ o.gb_package.gb_size }}GB</td>
                     <td>
-                        <span class="badge
-                            {% if o.status == 'delivered' %}badge-success
-                            {% elif o.status == 'processing' %}badge-warning
-                            {% elif o.status == 'failed' %}badge-danger
-                            {% else %}badge-muted{% endif %}">
-                            {% if o.status == 'kuntanii_unverified' %}Waiting{% else %}{{ o.get_status_display }}{% endif %}
-                        </span>
+                        <span class="badge {{ o.status_class }}">{{ o.status_label }}</span>
+                        {% if o.status_note %}<div style="font-size:0.78rem; color:var(--muted); margin-top:4px; max-width:240px;">{{ o.status_note }}</div>{% endif %}
                         {% if o.status == 'waiting' or o.status == 'kuntanii_unverified' %}
                         <form method="post" action="{% url 'request_refund' o.order_id %}" style="margin-top:6px;"
                               onsubmit="return confirm('Request a refund for this order?');">
@@ -51,7 +47,7 @@
                     <td style="color:var(--muted); font-size:0.85rem;">{{ o.created_at|date:"d M Y H:i" }}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px;">No orders found.</td></tr>
+                <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px;">{% if searched %}No orders found. Check the number or Order ID and try again.{% else %}Enter your phone number or Order ID to see your orders.{% endif %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>

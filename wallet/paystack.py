@@ -18,7 +18,7 @@ NETWORK_CODES = {
 API_TIMEOUT = 20
 
 
-def initialize_transaction(email, amount_ghc, reference, callback_url):
+def initialize_transaction(email, amount_ghc, reference, callback_url, metadata=None):
     """Amount in Ghana Cedis — converted to pesewas for Paystack."""
     response = requests.post(
         'https://api.paystack.co/transaction/initialize',
@@ -26,10 +26,11 @@ def initialize_transaction(email, amount_ghc, reference, callback_url):
         timeout=API_TIMEOUT,
         json={
             'email'       : email,
-            'amount'      : int(float(amount_ghc) * 100),
+            'amount'      : int((Decimal(str(amount_ghc)) * 100).quantize(Decimal('1'))),
             'reference'   : reference,
             'callback_url': callback_url,
             'currency'    : 'GHS',
+            **({'metadata': metadata} if metadata else {}),
         }
     )
     return response.json()

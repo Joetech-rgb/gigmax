@@ -1,9 +1,35 @@
 {% extends 'base.html' %}
-{% block title %}API Docs – SK Plug{% endblock %}
+{% block title %}API Docs - GigMax{% endblock %}
+{% block extra_css %}
+<style>
+.api-acc { margin-bottom:12px; padding:0; overflow:hidden; }
+.api-acc-head { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; background:transparent; border:0; color:var(--text); font:inherit; font-weight:600; text-align:left; cursor:pointer; }
+.api-acc-head:focus-visible { outline:2px solid var(--primary); outline-offset:-2px; }
+.api-acc-head .chev { transition:transform .25s ease; color:var(--muted); flex-shrink:0; }
+.api-acc-head[aria-expanded="true"] .chev { transform:rotate(180deg); }
+.api-acc-body { display:none; padding:0 18px 18px; font-size:.9rem; line-height:1.55; }
+.api-acc-head[aria-expanded="true"] + .api-acc-body { display:block; }
+.api-acc-body pre { background:var(--surface2); padding:14px 16px; border-radius:8px; overflow-x:auto; font-size:.82rem; margin:8px 0 14px; }
+.api-acc-body code { background:var(--surface2); padding:2px 6px; border-radius:6px; font-size:.85em; }
+.api-acc-body pre code { background:transparent; padding:0; }
+.api-acc-body table { width:100%; border-collapse:collapse; font-size:.85rem; margin:8px 0 14px; display:block; overflow-x:auto; }
+.api-acc-body th, .api-acc-body td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+.api-acc-body h4 { margin:16px 0 6px; font-size:.95rem; }
+.api-acc-body p { margin:6px 0; color:var(--text); }
+.api-muted { color:var(--muted); }
+.api-note { background:var(--surface2); border-left:3px solid var(--primary); padding:10px 14px; border-radius:8px; margin:10px 0; }
+.api-warn { background:var(--surface2); border-left:3px solid var(--warning); padding:10px 14px; border-radius:8px; margin:10px 0; }
+.api-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.api-field { width:100%; max-width:360px; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font:inherit; }
+#api-feedback { display:none; margin-top:12px; font-size:.88rem; font-weight:600; }
+@media (max-width:640px) { .api-acc-head { padding:14px; } .api-acc-body { padding:0 14px 14px; } }
+</style>
+{% endblock %}
 {% block body %}
+{% with base=request.scheme|add:'://'|add:request.get_host %}
 <div style="display:flex;">
     {% include 'partials/sidebar.html' %}
-    <main class="layout-with-sidebar" style="flex:1; padding:32px 24px; max-width:800px;">
+    <main class="layout-with-sidebar" style="flex:1; min-width:0; padding:32px 24px; max-width:860px;">
         <h1 class="page-title">API Documentation</h1>
 
         {% if not has_api %}
@@ -15,397 +41,459 @@
             </form>
         </div>
         {% else %}
-        <div class="card" style="margin-bottom:20px;">
-            <p class="section-title">Your API Token</p>
-            <code id="api-token" data-token="{{ token }}" style="background:var(--surface2); padding:12px 16px; border-radius:8px; display:block; word-break:break-all;">{{ token|slice:"-4:" }}</code>
-            <button class="btn btn-primary" style="margin-top:10px;" onclick="requestCopyToken()">Copy Token</button>
-        </div>
 
-        <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">Base URL</p>
-            <code>{{ request.scheme }}://{{ request.get_host }}/api/v1/</code>
-        </div>
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="true"><span>1. Introduction and overview</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <p>The GigMax API lets approved API agents place data bundle orders, check order statuses and refunds, and receive delivery updates from their own systems. Requests and responses use JSON.</p>
+                <h4>Base URL</h4>
+                <pre><code>{{ base }}/api/v1/</code></pre>
+                <p class="api-muted">Every endpoint works with or without a trailing slash. This page documents only what is currently implemented.</p>
+                <h4>Endpoint summary</h4>
+                <table>
+                    <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+                    <tr><td>POST</td><td><code>order/</code></td><td>Place an order (charges your wallet)</td></tr>
+                    <tr><td>GET</td><td><code>bundles/</code></td><td>List active bundles with your price</td></tr>
+                    <tr><td>GET</td><td><code>balance/</code></td><td>Wallet and debt balance</td></tr>
+                    <tr><td>GET</td><td><code>orders/</code></td><td>List your API orders</td></tr>
+                    <tr><td>GET</td><td><code>status/&lt;order_id&gt;/</code></td><td>Status of one order</td></tr>
+                    <tr><td>GET</td><td><code>waiting/</code></td><td>Your waiting and unverified orders</td></tr>
+                    <tr><td>GET</td><td><code>orders-summary/</code></td><td>Waiting, unverified and refund-requested summary</td></tr>
+                    <tr><td>GET</td><td><code>refunded/</code></td><td>Orders refunded on a given day</td></tr>
+                    <tr><td>GET, POST</td><td><code>callback/</code></td><td>View or register your webhook URL</td></tr>
+                </table>
+            </div>
+        </section>
 
-        <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">Authentication</p>
-            <p style="color:var(--muted); font-size:0.9rem;">Include your token in every request header:</p>
-            <pre style="background:var(--surface2); padding:16px; border-radius:8px; margin-top:8px; overflow-x:auto; font-size:0.85rem;">Authorization: Bearer YOUR_TOKEN</pre>
-        </div>
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>2. Authentication and your API key</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <p>Send your token in the <code>Authorization</code> header of every request:</p>
+                <pre><code>Authorization: Bearer YOUR_TOKEN</code></pre>
+                <p>Requests without a valid token, or from accounts without approved API access, get <code>401</code>.</p>
 
-        <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">POST /api/v1/order/ – Place Order</p>
-            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">{
-  "recipient": "0557581711",
+                <h4>Your API key</h4>
+                <code id="api-token-mask">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;{{ token_tail }}</code>
+                <p class="api-muted">The full key is never placed in this page. Copying or rotating it needs your account password.</p>
+                <div class="api-actions">
+                    <button type="button" class="btn btn-primary" id="btn-copy"><i class="fa fa-copy"></i> Copy token</button>
+                    <button type="button" class="btn btn-outline" id="btn-rotate"><i class="fa fa-rotate"></i> Rotate key</button>
+                </div>
+
+                <div id="pw-panel" style="display:none; margin-top:14px;">
+                    <label for="pw-input" class="api-muted" id="pw-label">Enter your account password</label><br>
+                    <input type="password" id="pw-input" class="api-field" autocomplete="current-password">
+                    <div class="api-actions">
+                        <button type="button" class="btn btn-primary" id="pw-confirm">Confirm</button>
+                        <button type="button" class="btn btn-outline" id="pw-cancel">Cancel</button>
+                    </div>
+                </div>
+
+                <div id="new-token-box" style="display:none; margin-top:14px;">
+                    <p><strong>Your new token</strong></p>
+                    <pre><code id="new-token-text"></code></pre>
+                    <button type="button" class="btn btn-primary" id="btn-copy-new"><i class="fa fa-copy"></i> Copy new token</button>
+                </div>
+                <div id="api-feedback" role="status" aria-live="polite"></div>
+
+                <div class="api-warn">
+                    <strong>Rotating a key takes effect immediately.</strong> The old token stops working, so update every system that uses it. Your webhook signing secret is the same token, so it changes too.
+                </div>
+            </div>
+        </section>
+
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>3. Getting started</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <p>1. Check your balance, 2. list bundles, 3. place an order, 4. check its status.</p>
+                <pre><code>curl {{ base }}/api/v1/balance/ \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+curl {{ base }}/api/v1/bundles/ \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+curl -X POST {{ base }}/api/v1/order/ \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"recipient": "0240000000", "network": "MTN", "gb_size": "1"}'
+
+curl {{ base }}/api/v1/status/ORDER_ID/ \
+  -H "Authorization: Bearer YOUR_TOKEN"</code></pre>
+                <p class="api-muted">Use the <code>network</code> and <code>gb_size</code> values exactly as returned by <code>bundles/</code>.</p>
+            </div>
+        </section>
+
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>4. Place an order - POST order/</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <p>Charges your wallet (or adds to your debt, where your account allows it) and creates the order. Requires approved API access and an account that is not paused.</p>
+                <h4>Body (JSON)</h4>
+                <table>
+                    <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+                    <tr><td><code>recipient</code></td><td>Yes</td><td>Ghana phone number of the beneficiary</td></tr>
+                    <tr><td><code>network</code></td><td>Yes</td><td>Network code from <code>bundles/</code> (case-insensitive)</td></tr>
+                    <tr><td><code>gb_size</code></td><td>Yes</td><td>Bundle size from <code>bundles/</code></td></tr>
+                </table>
+                <h4>Success - 201</h4>
+                <pre><code>{
+  "order_id": "GMX12345678",
+  "status": "pending",
   "network": "MTN",
-  "gb_size": "5"
-}</pre>
-            <p style="color:var(--muted); font-size:0.85rem; margin-top:12px; margin-bottom:6px;">Valid <code>network</code> values:</p>
-            <pre style="background:var(--surface2); padding:12px 16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">"MTN"          – MTN
-"TELECEL"      – Telecel
-"AT_EXPIRY"    – AirtelTigo, expiry bundle
-"AT_NOEXPIRY"  – AirtelTigo, no-expiry bundle</pre>
-            <p style="color:var(--muted); font-size:0.85rem; margin-top:12px;">
-                Note: AirtelTigo is split into two variants — there is no plain <code>"AT"</code> value.
-                Use <code>GET /api/v1/bundles/</code> to fetch the current list of active networks and gb_size options at any time.
-            </p>
-            <p style="color:var(--muted); font-size:0.85rem; margin-top:12px; margin-bottom:6px;">If network/gb_size is invalid:</p>
-            <pre style="background:var(--surface2); padding:12px 16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// 404 Response
-{
-  "error": "Bundle package not found.",
-  "requested": {"network": "AT", "gb_size": "5"},
-  "valid_networks": ["AT_EXPIRY", "AT_NOEXPIRY", "MTN", "TELECEL"]
-}</pre>
-        </div>
+  "recipient": "0240000000",
+  "gb_size": "1",
+  "price": "4.50"
+}</code></pre>
+                <p class="api-muted">Values are illustrative. <code>status</code> is the order's status at the moment of the response.</p>
+                <h4>Errors</h4>
+                <table>
+                    <tr><th>Code</th><th>When</th></tr>
+                    <tr><td>400</td><td>A field is missing, or the recipient number is invalid</td></tr>
+                    <tr><td>401</td><td>Missing or invalid token</td></tr>
+                    <tr><td>402</td><td>Insufficient wallet balance</td></tr>
+                    <tr><td>403</td><td>Account paused</td></tr>
+                    <tr><td>404</td><td>No active bundle for that network and size. The response lists <code>valid_networks</code></td></tr>
+                    <tr><td>409</td><td>An identical order (same recipient and bundle) was placed in the last 10 minutes. The response includes the existing <code>order_id</code>; failed orders do not count</td></tr>
+                    <tr><td>503</td><td>MTN orders are temporarily switched off</td></tr>
+                </table>
+                <div class="api-note">Order creation is limited to 20 requests per minute per IP address. Space out bulk submissions and wait a minute before retrying if requests are rejected. On a timeout, call <code>status/</code> or <code>orders/</code> before retrying, so you do not buy the same bundle twice.</div>
+            </div>
+        </section>
 
-        <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">GET /api/v1/orders/ – List My Orders</p>
-            <p style="color:var(--muted); font-size:0.9rem;">Returns all orders placed via API. Supports <code>?page=</code>, <code>?page_size=</code> (max 200) and <code>?status=</code>, e.g. <code>?status=unverified</code>.</p>
-            <hr style="border:none; border-top:1px solid var(--surface2); margin:16px 0;">
-            <p class="section-title" style="font-size:0.9rem;">GET /api/v1/refunded/ &ndash; Refunded Orders (per day)</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Orders that were rejected and refunded to your account (debt reduced first, then wallet). Defaults to today; use <code>?date=YYYY-MM-DD</code> for another day. Supports <code>?page=</code> and <code>?page_size=</code>. Each row includes <code>refund_credited</code> and <code>refunded_at</code>.</p>
-            <p class="section-title" style="font-size:0.9rem;">GET /api/v1/waiting/ &ndash; Waiting &amp; Unverified Orders</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Paginated list of your API orders that are waiting or unverified. Each order has a <code>status</code> of <code>waiting</code> or <code>unverified</code>. Supports <code>?page=</code> and <code>?page_size=</code> (max 200).</p>
-            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Response
-{
-  "total_count": 1,
-  "total_amount": "10.00",
-  "page": 1,
-  "total_pages": 1,
-  "page_size": 50,
-  "has_next": false,
-  "has_previous": false,
-  "orders": [
-    {
-      "order_id": "SKP26106203",
-      "network": "MTN",
-      "recipient": "0550000010",
-      "price_paid": 10.0,
-      "status": "unverified",
-      "created_at": "2026-10-06T21:30:10Z"
-    }
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>5. Read endpoints</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <p>All require <code>Authorization: Bearer YOUR_TOKEN</code> and return <code>401</code> without a valid token.</p>
+
+                <h4>GET bundles/</h4>
+                <pre><code>[
+  { "id": 1, "network": "MTN", "gb_size": "1", "label": "1GB", "your_price": "4.50" }
+]</code></pre>
+
+                <h4>GET balance/</h4>
+                <pre><code>{ "wallet_balance": "120.00", "debt_balance": "0.00", "debt_access": false }</code></pre>
+
+                <h4>GET orders/?page=1&amp;page_size=50&amp;status=delivered</h4>
+                <p>Lists orders you placed through the API, newest first. <code>page</code> and <code>page_size</code> must be whole numbers (maximum page size 200). <code>status</code> is optional.</p>
+                <pre><code>{
+  "count": 1, "page": 1, "page_size": 50,
+  "results": [
+    { "order_id": "GMX12345678", "network": "MTN", "recipient": "0240000000",
+      "status": "delivered", "price_paid": "4.50", "created_at": "2026-10-18T10:00:00Z" }
   ]
-}</pre>
-        </div>
+}</code></pre>
 
-        <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">GET /api/v1/bundles/ – List Available Bundles</p>
-            <p style="color:var(--muted); font-size:0.9rem;">Returns all active bundle packages.</p>
-        </div>
+                <h4>GET status/&lt;order_id&gt;/</h4>
+                <pre><code>{
+  "order_id": "GMX12345678",
+  "status": "refunded",
+  "display_status": "refunded",
+  "refund_credited": true,
+  "message": "Refunded. Your account has been credited."
+}</code></pre>
+                <p class="api-muted">Unknown order, or an order that is not yours: <code>404</code>.</p>
 
-        <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">GET /api/v1/balance/ – Check Wallet Balance</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns your current wallet balance, debt balance, and debt access status.</p>
-            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Request
-GET /api/v1/balance/
-Authorization: Bearer YOUR_TOKEN
+                <h4>GET waiting/?page=1&amp;page_size=50</h4>
+                <p>Your API orders with status <code>waiting</code> or <code>unverified</code>, with <code>total_count</code>, <code>total_amount</code>, <code>page</code>, <code>total_pages</code>, <code>has_next</code>, <code>has_previous</code> and an <code>orders</code> list.</p>
 
-// Response
-{
-  "wallet_balance": "150.00",
-  "debt_balance": "0.00",
-  "debt_access": false
-}</pre>
-            <p style="color:var(--muted); font-size:0.85rem; margin-top:12px;">
-                <code>wallet_balance</code> and <code>debt_balance</code> are returned as strings to preserve exact decimal precision — parse them as decimals, not floats, in your integration.
-                <code>debt_access</code> indicates whether your account can carry a balance below zero (debt) — if <code>false</code>, orders will fail if your wallet balance is insufficient.
-            </p>
-        </div>
+                <h4>GET orders-summary/</h4>
+                <p>Groups <code>waiting</code>, <code>unverified</code> and <code>refund_requested</code>, each with <code>count</code>, <code>total</code> and <code>orders</code>. It also includes orders placed through your generated links, and each order shows <code>amount_owed</code>.</p>
+            </div>
+        </section>
 
-        <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">GET /api/v1/orders-summary/ – Waiting, Unverified &amp; Refund-Requested Orders</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns your full waiting/refund picture in one call — orders you placed directly plus orders your customers placed through your generated links. Recommended endpoint for tracking money owed to you.</p>
-            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Request
-GET /api/v1/orders-summary/
-Authorization: Bearer YOUR_TOKEN
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>6. Order statuses and verification</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <table>
+                    <tr><th>Status</th><th>Meaning</th><th>What to do</th></tr>
+                    <tr><td><code>pending</code></td><td>Order created, not yet sent for delivery</td><td>Wait, then poll <code>status/</code></td></tr>
+                    <tr><td><code>processing</code></td><td>Being delivered</td><td>Wait</td></tr>
+                    <tr><td><code>delivered</code></td><td>Delivered to the recipient</td><td>Nothing</td></tr>
+                    <tr><td><code>waiting</code></td><td>Held. No refund has been issued yet</td><td>Wait, or contact support</td></tr>
+                    <tr><td><code>unverified</code></td><td>The contact could not be verified. A refund may follow, but none has been issued while this status shows</td><td>Check again later, or contact support</td></tr>
+                    <tr><td><code>refunded</code></td><td>The order failed and your account was credited when <code>refund_credited</code> is <code>true</code></td><td>Nothing</td></tr>
+                    <tr><td><code>failed</code></td><td>The order failed</td><td>Check <code>status/</code>, then contact support</td></tr>
+                </table>
+                <div class="api-note">Statuses can change after the first response. Do not treat <code>waiting</code>, <code>unverified</code> or <code>pending</code> as final, and use <code>status/&lt;order_id&gt;/</code> as the source of truth when a webhook is missed.</div>
+            </div>
+        </section>
 
-// Response
-{
-  "waiting": {
-    "count": 5,
-    "total": "36.12",
-    "orders": [
-      {
-        "order_id": "SKP41737719",
-        "network": "MTN",
-        "recipient": "0552387954",
-        "gb_size": "5.00",
-        "price_paid": "21.80",
-        "amount_owed": "21.80",
-        "status": "waiting",
-        "created_at": "2026-07-24T20:35:55Z"
-      }
-    ]
-  },
-  "unverified": {
-    "label": "Unverified contacts",
-    "message": "No refund has been issued for these orders.",
-    "count": 0,
-    "total": "0",
-    "orders": []
-  },
-  "refund_requested": {
-    "count": 0,
-    "total": "0",
-    "orders": []
-  }
-}</pre>
-            <p style="color:var(--muted); font-size:0.85rem; margin-top:12px;">
-                <code>gb_size</code> is the data bundle size in GB for that order. <code>amount_owed</code> is the amount payable to you — for orders placed through your generated links, this is your cost price, not the retail price your customer paid.
-                <code>unverified</code> lists unverified contacts (numbers we could not automatically confirm with the delivery network). They are under manual review and no refund is issued automatically.
-                <code>refund_requested</code> lists orders where a refund was requested; each order includes a <code>paid</code> field indicating whether it has been paid out yet.
-            </p>
-        </div>
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>7. Refunds and refunded orders</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <p>Refunds are decided and applied by GigMax, not by an API call. When an API order is refunded, the amount reverses your debt first and any remainder is credited to your wallet. The order then shows <code>refunded</code> with <code>refund_credited: true</code>. You cannot request or trigger a refund through the API.</p>
+                <h4>GET refunded/?date=YYYY-MM-DD&amp;page=1&amp;page_size=50</h4>
+                <p>Refunded orders for one day (default: today). An invalid date returns <code>400</code>.</p>
+                <pre><code>{
+  "date": "2026-10-18",
+  "total_count": 1, "total_amount": "4.50",
+  "page": 1, "total_pages": 1, "page_size": 50,
+  "has_next": false, "has_previous": false,
+  "orders": [
+    { "order_id": "GMX12345678", "network": "MTN", "recipient": "0240000000",
+      "price_paid": "4.50", "status": "refunded", "refund_credited": true,
+      "refunded_at": "2026-10-18T10:30:00+00:00" }
+  ]
+}</code></pre>
+                <p>To download your refunded orders as a spreadsheet, use <a href="/agent/dashboard/export-refunded/">Export refunded orders (CSV)</a>, or the export button on your orders page.</p>
+            </div>
+        </section>
 
-        <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">GET /api/v1/status/{order_id}/ – Check Order Status</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns the current status of a specific order.</p>
-            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Request
-GET /api/v1/status/SKP36648705/
-Authorization: Bearer YOUR_TOKEN
-
-// Response (delivered order)
-{
-  "order_id": "SKP36648705",
-  "status": "delivered"
-}
-
-// Response (unverified contact)
-{
-  "order_id": "SKP26106203",
-  "status": "unverified",
-  "display_status": "unverified",
-  "message": "Unverified contact. No refund has been issued."
-}
-
-// Possible status values:
-// pending             – Order received, awaiting processing
-// processing          – Sent to network, delivery in progress
-// delivered           – Data delivered successfully
-// failed              – Delivery failed
-// waiting             – Could not be delivered; held for review (no automatic refund)
-// unverified           – Unverified contact; under manual review, no automatic refund</pre>
-        </div>
-
-        <!-- -- WEBHOOK / CALLBACK ------------------------------------ -->
-        <div class="card" style="margin-bottom:16px; border-left: 3px solid var(--primary, #2563eb);">
-            <p class="section-title">?? Delivery Notifications (Webhook)</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">
-                Instead of polling for order status, register a URL on your server. We will automatically
-                send a <strong>POST</strong> request to that URL when an order changes status. Events: <code>order.delivered</code>, <code>order.failed</code>, <code>order.waiting</code> and <code>order.unverified</code>. Orders that fail or cannot be verified are not refunded automatically; <code>order.refunded</code> is only sent if an admin manually refunds an order.
-            </p>
-
-            <p class="section-title" style="font-size:0.9rem;">GET /api/v1/callback/ – Get Registered Callback URL</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Returns your currently registered callback URL.</p>
-            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Response
-{
-  "callback_url": "https://yourserver.com/webhook"
-}</pre>
-
-            <hr style="border:none; border-top:1px solid var(--surface2); margin:16px 0;">
-
-            <p class="section-title" style="font-size:0.9rem;">POST /api/v1/callback/ – Register Callback URL</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">Register the URL on your server that should receive delivery notifications. Only needs to be done once.</p>
-            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">// Request body
-{
-  "callback_url": "https://yourserver.com/your-webhook-endpoint"
-}
-
-// Success response
-{
-  "message": "Callback URL registered successfully.",
-  "callback_url": "https://yourserver.com/your-webhook-endpoint",
-  "note": "We will POST to this URL when your orders are delivered."
-}</pre>
-
-            <p style="color:var(--muted); font-size:0.85rem; margin-top:12px;">
-                ?? Every notification we send includes an <code>X-GigMax-Signature</code> header.
-                Verify this on your server to confirm the request is genuinely from us.
-            </p>
-
-            <p class="section-title" style="font-size:0.9rem; margin-top:16px;">Example payload (unverified contact)</p>
-            <pre style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto;">{
-  "event": "order.unverified",
-  "order_id": "SKP26106203",
-  "status": "unverified",
-  "message": "Unverified contact. No refund has been issued.",
-  "recipient": "0550000010",
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>8. Webhooks and callbacks</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <h4>Register your URL</h4>
+                <pre><code>curl -X POST {{ base }}/api/v1/callback/ \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"callback_url": "https://yourserver.com/your-webhook-endpoint"}'</code></pre>
+                <p>The URL must start with <code>http://</code> or <code>https://</code> (otherwise <code>400</code>). Send an empty <code>callback_url</code> to clear it. <code>GET callback/</code> shows the URL currently registered.</p>
+                <h4>What we send</h4>
+                <p>A <code>POST</code> with a JSON body when an API order changes to <code>processing</code>, <code>delivered</code>, <code>waiting</code>, <code>refunded</code> or <code>failed</code>. The event name is <code>order.&lt;status&gt;</code>.</p>
+                <pre><code>{
+  "event": "order.delivered",
+  "order_id": "GMX12345678",
+  "status": "delivered",
+  "message": null,
+  "recipient": "0240000000",
   "network": "MTN",
-  "gb_size": "1.00",
-  "price": "10.00",
-  "timestamp": "2026-10-06T21:30:10Z"
-}</pre>
-            <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;"><code>message</code> is <code>null</code> for other events.</p>
-        </div>
+  "gb_size": "1",
+  "price": "4.50",
+  "timestamp": "2026-10-18T10:05:00+00:00"
+}</code></pre>
+                <div class="api-warn"><strong>No retries.</strong> Each event is sent once with a 10-second timeout, and failed deliveries are not retried. The <code>unverified</code> status is never sent by webhook. Poll <code>status/&lt;order_id&gt;/</code> as the fallback, and make your handler safe to run twice for the same order.</div>
+            </div>
+        </section>
 
-        <!-- -- TROUBLESHOOTING --------------------------------------- -->
-        <div class="card" style="margin-bottom:16px; border-left: 3px solid #f59e0b;">
-            <p class="section-title">?? Troubleshooting Failed Requests</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">
-                If your integration shows a generic error (e.g. "invalid response," "order failed") but you're not sure why, check these in order:
-            </p>
-            <ol style="color:var(--muted); font-size:0.9rem; padding-left:20px; line-height:1.8;">
-                <li><strong>Log the raw response.</strong> Before showing any error to your users, log the exact HTTP status code and response body you received. A generic catch-all error message hides the real cause — always inspect the actual response first.</li>
-                <li><strong>Confirm the request actually reached us.</strong> If you see a network-level error (timeout, connection refused, DNS failure) in your own logs, the request never reached our server — this is a connectivity issue on your end or your host's network, not something we can debug from our side.</li>
-                <li><strong>Check your base URL.</strong> Confirm you're calling <code>https://gigmax.com/api/v1/</code> exactly — typos or a stale/cached URL are a common cause of silent failures.</li>
-                <li><strong>Verify your network/gb_size values</strong> against the accepted list above — a 404 with <code>"Bundle package not found"</code> means one of these didn't match.</li>
-                <li><strong>Still stuck?</strong> Contact support with: the exact timestamp of the failed request, your account phone number, and the raw response (or network error) you received. Without these details we can't look up what happened on our end.</li>
-            </ol>
-        </div>
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>9. Security and webhook signatures</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <p><strong>Requests to GigMax</strong> are authenticated only by your Bearer token. They do not carry a signature. Always use HTTPS, keep the token on your server, and rotate it if you think it leaked.</p>
+                <p><strong>Webhooks from GigMax</strong> carry an <code>X-GigMax-Signature</code> header: the hex HMAC-SHA256 of the raw request body, using your API token as the secret. Verify it before trusting the payload:</p>
+<pre><code>import hmac, hashlib
 
-        <!-- -- TEST CONSOLE ---------------------------------------- -->
-        <div class="card" style="margin-bottom:16px;">
-            <p class="section-title">?? API Test Console</p>
-            <p style="color:var(--muted); font-size:0.9rem; margin-bottom:16px;">Test your API directly from here.</p>
+def is_valid(raw_body: bytes, header_value: str, api_token: str) -> bool:
+    expected = hmac.new(api_token.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, header_value or "")</code></pre>
+                <div class="api-note">Compute the signature over the exact bytes you received, not over re-serialized JSON. If verification suddenly fails everywhere, check whether the token was rotated, because the signing secret changes with it.</div>
+            </div>
+        </section>
 
-            <div style="display:flex; gap:10px; margin-bottom:12px;">
-                <select id="test-method" class="form-control" style="width:100px;">
-                    <option value="POST">POST</option>
-                    <option value="GET">GET</option>
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>10. Response codes and troubleshooting</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <table>
+                    <tr><th>Code</th><th>Meaning</th></tr>
+                    <tr><td>200 / 201</td><td>Success (201 for a created order)</td></tr>
+                    <tr><td>400</td><td>Invalid or missing input</td></tr>
+                    <tr><td>401</td><td>Missing or invalid token, or no API access</td></tr>
+                    <tr><td>402</td><td>Insufficient wallet balance</td></tr>
+                    <tr><td>403</td><td>Account paused</td></tr>
+                    <tr><td>404</td><td>Bundle or order not found</td></tr>
+                    <tr><td>409</td><td>Duplicate order within 10 minutes</td></tr>
+                    <tr><td>503</td><td>MTN ordering temporarily unavailable</td></tr>
+                </table>
+                <h4>Common problems</h4>
+                <p><strong>Always getting 401.</strong> Check the header is exactly <code>Authorization: Bearer YOUR_TOKEN</code>, the token was not rotated, and your API access is still approved.</p>
+                <p><strong>Duplicate order (409).</strong> The same recipient and bundle was ordered within 10 minutes. Use the returned <code>order_id</code> instead of resubmitting.</p>
+                <p><strong>Order stays waiting or unverified.</strong> Poll <code>status/&lt;order_id&gt;/</code>. If it does not change, contact support with the order ID.</p>
+                <p><strong>No webhook arrived.</strong> Webhooks are not retried, so poll <code>status/</code>. Confirm your URL with <code>GET callback/</code> and that your server answers within 10 seconds.</p>
+                <p><strong>Signature check fails.</strong> Use the raw body bytes, the current token as the secret, and compare the hex digest.</p>
+            </div>
+        </section>
+
+        {% if group_url or support_phone or support_whatsapp %}
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="true"><span>11. API agents group and technical support</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <p>Join the official GigMax API agents group for announcements, or contact technical support for help with integration, authentication, order status checks and refunds.</p>
+                <div class="api-actions">
+                    {% if group_url %}<a class="btn btn-primary" href="{{ group_url }}" target="_blank" rel="noopener"><i class="fa fa-users"></i> Join the API agents group</a>{% endif %}
+                    {% if support_phone %}<a class="btn btn-outline" href="tel:{{ support_tel }}"><i class="fa fa-phone"></i> Call support: {{ support_phone }}</a>{% endif %}
+                    {% if support_whatsapp %}<a class="btn btn-outline" href="https://wa.me/{{ support_wa_digits }}" target="_blank" rel="noopener"><i class="fa fa-comment"></i> Get API help on WhatsApp</a>{% endif %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="card api-acc">
+            <button type="button" class="api-acc-head" aria-expanded="false"><span>12. Try it (read-only)</span><i class="fa fa-chevron-down chev"></i></button>
+            <div class="api-acc-body">
+                <p>Sends a real request with your token. Only read endpoints are available here, so no order can be placed from this page. You are asked for your password the first time.</p>
+                <select id="test-endpoint" class="api-field">
+                    <option value="/api/v1/balance/">GET balance/</option>
+                    <option value="/api/v1/bundles/">GET bundles/</option>
+                    <option value="/api/v1/orders/">GET orders/</option>
+                    <option value="/api/v1/waiting/">GET waiting/</option>
+                    <option value="/api/v1/orders-summary/">GET orders-summary/</option>
+                    <option value="/api/v1/refunded/">GET refunded/</option>
+                    <option value="/api/v1/callback/">GET callback/</option>
+                    <option value="status">GET status/&lt;order_id&gt;/</option>
                 </select>
-                <select id="test-endpoint" class="form-control" style="flex:1;">
-                    <option value="/api/v1/order/">POST /api/v1/order/ — Place Order</option>
-                    <option value="/api/v1/orders/">GET /api/v1/orders/ — List My Orders</option>
-                    <option value="/api/v1/bundles/">GET /api/v1/bundles/ — List Bundles</option>
-                    <option value="/api/v1/balance/">GET /api/v1/balance/ — Check Wallet Balance</option>
-                    <option value="/api/v1/orders-summary/">GET /api/v1/orders-summary/ — Waiting/Refund Summary</option>
-                    <option value="/api/v1/status/?status">GET /api/v1/status/{order_id}/ — Check Order Status</option>
-                    <option value="/api/v1/callback/?get">GET /api/v1/callback/ — Get Callback URL</option>
-                    <option value="/api/v1/callback/">POST /api/v1/callback/ — Register Callback URL</option>
-                </select>
+                <div id="order-id-section" style="display:none; margin-top:10px;">
+                    <input type="text" id="test-order-id" class="api-field" placeholder="Order ID, e.g. GMX12345678">
+                </div>
+                <div class="api-actions"><button type="button" class="btn btn-primary" id="btn-test">Send request</button></div>
+                <div id="test-result" style="display:none; margin-top:14px;">
+                    <p class="api-muted">Response:</p>
+                    <pre id="test-output" style="white-space:pre-wrap;"></pre>
+                </div>
             </div>
+        </section>
 
-            <div id="order-id-section" style="display:none; margin-bottom:12px;">
-                <p style="font-size:0.85rem; color:var(--muted); margin-bottom:6px;">Order ID:</p>
-                <input id="test-order-id" class="form-control" type="text" placeholder="e.g. SKP36648705" style="font-family:monospace; font-size:0.85rem;">
-            </div>
-
-            <div id="body-section">
-                <p style="font-size:0.85rem; color:var(--muted); margin-bottom:6px;">Request Body (JSON):</p>
-                <textarea id="test-body" class="form-control" rows="6" style="font-family:monospace; font-size:0.85rem;">{
-  "recipient": "0557581711",
-  "network": "MTN",
-  "gb_size": "67"
-}</textarea>
-            </div>
-
-            <button class="btn btn-primary" style="margin-top:12px;" onclick="runTest()">Send Request</button>
-
-            <div id="test-result" style="display:none; margin-top:16px;">
-                <p style="font-size:0.85rem; color:var(--muted); margin-bottom:6px;">Response:</p>
-                <pre id="test-output" style="background:var(--surface2); padding:16px; border-radius:8px; font-size:0.85rem; overflow-x:auto; white-space:pre-wrap;"></pre>
-            </div>
-        </div>
         {% endif %}
     </main>
 </div>
 
+{% if has_api %}
 <script>
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(function() {
-        alert('API Key copied to clipboard!');
-    });
-}
-
-async function requestCopyToken() {
-    const password = prompt('Enter your account password to copy your API token:');
-    if (!password) return;
-
-    const form = new FormData();
-    form.append('password', password);
-
-    try {
-        const res  = await fetch('{% url "agent_verify_token_password" %}', {
-            method: 'POST',
-            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-            body: form,
+(function () {
+    document.querySelectorAll('.api-acc-head').forEach(function (b) {
+        b.addEventListener('click', function () {
+            b.setAttribute('aria-expanded', b.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
         });
-        const data = await res.json();
-        if (data.ok) {
-            copyToClipboard(data.token);
-        } else {
-            alert(data.error || 'Incorrect password.');
-        }
-    } catch (err) {
-        alert('Something went wrong. Please try again.');
+    });
+
+    var csrf = '{{ csrf_token }}';
+    var URL_VERIFY = '{% url "agent_verify_token_password" %}';
+    var URL_ROTATE = '{% url "agent_rotate_token" %}';
+    var tokenCache = null;
+    var pendingAction = null;
+
+    function el(id) { return document.getElementById(id); }
+    function say(msg, ok) {
+        var f = el('api-feedback');
+        f.textContent = msg;
+        f.style.display = 'block';
+        f.style.color = ok ? 'var(--primary)' : 'var(--danger)';
     }
-}
-
-const POST_ENDPOINTS = ['/api/v1/order/', '/api/v1/callback/'];
-
-const ENDPOINT_BODIES = {
-    '/api/v1/order/': '{\n  "recipient": "0557581711",\n  "network": "MTN",\n  "gb_size": "67"\n}',
-    '/api/v1/callback/': '{\n  "callback_url": "https://yourserver.com/your-webhook-endpoint"\n}',
-};
-
-document.getElementById('test-method').addEventListener('change', function() {
-    document.getElementById('body-section').style.display = this.value === 'POST' ? 'block' : 'none';
-});
-
-document.getElementById('test-endpoint').addEventListener('change', function() {
-    const val = this.value;
-    const isStatus = val.includes('?status');
-    const isGet = val.includes('?get') || isStatus;
-    const actualEndpoint = val.replace('?get', '').replace('?status', '');
-    const isPost = POST_ENDPOINTS.includes(actualEndpoint) && !isGet;
-
-    document.getElementById('test-method').value = isPost ? 'POST' : 'GET';
-    document.getElementById('body-section').style.display = isPost ? 'block' : 'none';
-    document.getElementById('order-id-section').style.display = isStatus ? 'block' : 'none';
-
-    if (isPost && ENDPOINT_BODIES[actualEndpoint]) {
-        document.getElementById('test-body').value = ENDPOINT_BODIES[actualEndpoint];
-    }
-});
-
-async function runTest() {
-    const token     = document.getElementById('api-token').dataset.token;
-    const method    = document.getElementById('test-method').value;
-    const rawVal    = document.getElementById('test-endpoint').value;
-    const isStatus  = rawVal.includes('?status');
-    const orderId   = document.getElementById('test-order-id').value.trim();
-    let endpoint    = rawVal.replace('?get', '').replace('?status', '');
-
-    if (isStatus) {
-        if (!orderId) {
-            alert('Please enter an Order ID.');
-            return;
-        }
-        endpoint = '/api/v1/status/' + orderId + '/';
-    }
-
-    const bodyText  = document.getElementById('test-body').value;
-    const resultBox = document.getElementById('test-result');
-    const output    = document.getElementById('test-output');
-
-    resultBox.style.display = 'block';
-    output.innerText = 'Sending request...';
-
-    const options = {
-        method: method,
-        headers: {
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json',
-        }
-    };
-
-    if (method === 'POST') {
+    async function copyText(text) {
         try {
-            options.body = JSON.stringify(JSON.parse(bodyText));
-        } catch(e) {
-            output.innerText = 'Invalid JSON in request body.';
-            return;
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (e) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            var ok = false;
+            try { ok = document.execCommand('copy'); } catch (e2) {}
+            document.body.removeChild(ta);
+            return ok;
         }
     }
-
-    try {
-        const response = await fetch(endpoint, options);
-        const data = await response.json();
-        output.style.color = response.ok ? 'var(--success, green)' : 'var(--danger, red)';
-        output.innerText = 'Status: ' + response.status + '\n\n' + JSON.stringify(data, null, 2);
-    } catch(err) {
-        output.style.color = 'red';
-        output.innerText = 'Error: ' + err.message;
+    function showPanel(action, label) {
+        pendingAction = action;
+        el('pw-label').textContent = label;
+        el('pw-panel').style.display = 'block';
+        el('pw-input').value = '';
+        el('pw-input').focus();
     }
-}
+    function hidePanel() {
+        el('pw-panel').style.display = 'none';
+        el('pw-input').value = '';
+        pendingAction = null;
+    }
+    async function postPassword(url, password) {
+        var form = new FormData();
+        form.append('password', password);
+        var res = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf }, body: form });
+        var data = {};
+        try { data = await res.json(); } catch (e) {}
+        return data;
+    }
+
+    el('btn-copy').addEventListener('click', function () {
+        showPanel('copy', 'Enter your account password to copy your API token');
+    });
+    el('btn-rotate').addEventListener('click', function () {
+        if (!confirm('Rotate your API key? The current token stops working immediately and the webhook signing secret changes.')) return;
+        showPanel('rotate', 'Enter your account password to rotate your API key');
+    });
+    el('pw-cancel').addEventListener('click', hidePanel);
+    el('pw-input').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); el('pw-confirm').click(); }
+    });
+
+    el('pw-confirm').addEventListener('click', async function () {
+        var pw = el('pw-input').value;
+        if (!pw) { say('Enter your password first.', false); return; }
+        var action = pendingAction;
+        var btn = el('pw-confirm');
+        btn.disabled = true;
+        try {
+            if (action === 'rotate') {
+                var r = await postPassword(URL_ROTATE, pw);
+                if (r.ok) {
+                    tokenCache = r.token;
+                    el('new-token-text').textContent = r.token;
+                    el('new-token-box').style.display = 'block';
+                    el('api-token-mask').innerHTML = '&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;' + r.token.slice(-4);
+                    hidePanel();
+                    say('API key rotated. The old token no longer works. Copy your new token now.', true);
+                } else {
+                    say(r.error || 'Could not rotate the key.', false);
+                }
+            } else {
+                var v = await postPassword(URL_VERIFY, pw);
+                if (v.ok) {
+                    tokenCache = v.token;
+                    hidePanel();
+                    if (action === 'copy') {
+                        var copied = await copyText(tokenCache);
+                        say(copied ? 'API token copied to clipboard.' : 'Could not copy automatically. Copy the token manually.', copied);
+                    } else if (action === 'test') {
+                        runTest();
+                    }
+                } else {
+                    say(v.error || 'Incorrect password.', false);
+                }
+            }
+        } catch (err) {
+            say('Something went wrong. Please try again.', false);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    el('btn-copy-new').addEventListener('click', async function () {
+        var ok = await copyText(el('new-token-text').textContent);
+        say(ok ? 'New API token copied to clipboard.' : 'Could not copy automatically. Copy the token manually.', ok);
+    });
+
+    el('test-endpoint').addEventListener('change', function () {
+        el('order-id-section').style.display = this.value === 'status' ? 'block' : 'none';
+    });
+    el('btn-test').addEventListener('click', function () {
+        if (!tokenCache) { showPanel('test', 'Enter your account password to unlock the console'); return; }
+        runTest();
+    });
+
+    async function runTest() {
+        var endpoint = el('test-endpoint').value;
+        if (endpoint === 'status') {
+            var oid = el('test-order-id').value.trim();
+            if (!oid) { say('Enter an order ID first.', false); return; }
+            endpoint = '/api/v1/status/' + encodeURIComponent(oid) + '/';
+        }
+        var box = el('test-result');
+        var out = el('test-output');
+        box.style.display = 'block';
+        out.style.color = '';
+        out.textContent = 'Sending request...';
+        try {
+            var response = await fetch(endpoint, { method: 'GET', headers: { 'Authorization': 'Bearer ' + tokenCache } });
+            var data = await response.json();
+            out.style.color = response.ok ? 'var(--primary)' : 'var(--danger)';
+            out.textContent = 'Status: ' + response.status + '\n\n' + JSON.stringify(data, null, 2);
+        } catch (err) {
+            out.style.color = 'var(--danger)';
+            out.textContent = 'Error: ' + err.message;
+        }
+    }
+})();
 </script>
+{% endif %}
+{% endwith %}
 {% endblock %}

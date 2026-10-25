@@ -368,3 +368,35 @@ class OrderStatusLog(models.Model):
 
     def __str__(self):
         return f"{self.order_id}: {self.old_status} -> {self.new_status} @ {self.changed_at}"
+
+
+class AutoRefundSettings(models.Model):
+    # Single row. When OFF, orders that would be refunded automatically stay in the review queue.
+    is_enabled = models.BooleanField(default=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Auto Refund Settings'
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(id=1)
+        return obj
+
+    def __str__(self):
+        return 'Auto Refund ' + ('ON' if self.is_enabled else 'OFF')
+
+
+class SettingChangeLog(models.Model):
+    setting = models.CharField(max_length=60)
+    old_value = models.CharField(max_length=60, blank=True)
+    new_value = models.CharField(max_length=60, blank=True)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-changed_at']
+
+    def __str__(self):
+        return '%s: %s -> %s' % (self.setting, self.old_value, self.new_value)
