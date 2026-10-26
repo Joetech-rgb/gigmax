@@ -22,6 +22,15 @@
 .api-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
 .api-field { width:100%; max-width:360px; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font:inherit; }
 #api-feedback { display:none; margin-top:12px; font-size:.88rem; font-weight:600; }
+@keyframes reqPop { 0% { transform:scale(1); } 25% { transform:scale(.86); } 55% { transform:scale(1.14) rotate(-2deg); } 80% { transform:scale(.97) rotate(2deg); } 100% { transform:scale(1); } }
+@keyframes reqRing { 0% { box-shadow:0 0 0 0 rgba(53,188,59,.55); } 100% { box-shadow:0 0 0 22px rgba(53,188,59,0); } }
+.req-pop { animation:reqPop .45s ease, reqRing .6s ease-out; }
+.req-box { display:flex; align-items:center; gap:12px; justify-content:center; padding:14px 18px; border-radius:14px; margin-top:6px; font-weight:600; }
+.req-box i { font-size:1.3rem; }
+.req-ok { background:var(--surface2); color:var(--primary-text, var(--primary)); animation:reqRing .8s ease-out; }
+.req-wait { background:var(--surface2); color:var(--text); }
+.req-no { background:var(--surface2); color:var(--danger); margin-bottom:14px; }
+@media (prefers-reduced-motion: reduce) { .req-pop, .req-ok { animation:none; } }
 @media (max-width:640px) { .api-acc-head { padding:14px; } .api-acc-body { padding:0 14px 14px; } }
 </style>
 {% endblock %}
@@ -35,10 +44,36 @@
         {% if not has_api %}
         <div class="card" style="text-align:center; padding:40px;">
             <p style="color:var(--muted); margin-bottom:20px;">You don't have API access yet.</p>
-            <form method="post" action="/agent/request-api/">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-primary">Request API Access</button>
-            </form>
+            {% if api_request_status == 'pending' %}
+                <div class="req-box {% if request.GET.requested %}req-ok{% else %}req-wait{% endif %}" role="status">
+                    <i class="fa fa-circle-check"></i>
+                    <span>{% if request.GET.requested %}Request sent. The admin has been notified.{% else %}Request pending. The admin will review it.{% endif %}</span>
+                </div>
+            {% else %}
+                {% if api_request_status == 'denied' %}
+                <div class="req-box req-no" role="status"><i class="fa fa-circle-xmark"></i><span>Your last request was declined. You can send a new one.</span></div>
+                {% endif %}
+                <form method="post" action="/agent/request-api/" id="req-form">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary" id="req-btn">Request API Access</button>
+                </form>
+                <script>
+                (function () {
+                    var f = document.getElementById('req-form');
+                    var b = document.getElementById('req-btn');
+                    if (!f || !b) { return; }
+                    f.addEventListener('submit', function (e) {
+                        if (f.dataset.go) { return; }
+                        e.preventDefault();
+                        f.dataset.go = '1';
+                        b.classList.add('req-pop');
+                        b.disabled = true;
+                        b.textContent = 'Sending request...';
+                        setTimeout(function () { f.submit(); }, 500);
+                    });
+                })();
+                </script>
+            {% endif %}
         </div>
         {% else %}
 

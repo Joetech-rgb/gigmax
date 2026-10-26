@@ -1382,6 +1382,12 @@ def delete_link_view(request, pk):
 # API docs
 # ---------------------------------------------------------------------------
 
+def _api_request_status(user):
+    from api_access.models import APIRequest
+    last = APIRequest.objects.filter(agent=user).order_by('-created_at').first()
+    return last.status if last else ''
+
+
 @agent_required
 def api_docs_view(request):
     from django.conf import settings as _s
@@ -1390,6 +1396,7 @@ def api_docs_view(request):
     wa    = getattr(_s, 'API_SUPPORT_WHATSAPP', '') or ''
     return render(request, 'agent/api_docs.html', {
         'has_api'         : getattr(request.user, 'has_api_access', False),
+        'api_request_status': _api_request_status(request.user),
         'token_tail'      : token[-4:],
         'group_url'       : getattr(_s, 'API_GROUP_INVITE_URL', '') or '',
         'support_phone'   : phone,
@@ -1428,9 +1435,11 @@ def rotate_api_token_view(request):
 
 @agent_required
 def api_request_view(request):
-    if request.method == 'POST':
-        messages.success(request, 'API access request sent to Admin.')
-    return redirect('/agent/api-docs/')
+    from api_access.models import APIRequest
+    if request.method == 'POST' and not getattr(request.user, 'has_api_access', False):
+        if not APIRequest.objects.filter(agent=request.user, status='pending').exists():
+            APIRequest.objects.create(agent=request.user)
+    return redirect('/agent/api-docs/?requested=1')
 
 
 # ---------------------------------------------------------------------------
